@@ -1,20 +1,19 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, agent/skillcheck-v0.3]
   pull_request:
 permissions:
   contents: read
 jobs:
-  verify:
+  release-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm test
-      - run: node skillcheck.mjs scan --root examples/safe --config ../../skillcheck.config.json
-      - name: Unsafe fixture must be blocked
-        run: |
-          if node skillcheck.mjs scan --root examples/unsafe --config ../../skillcheck.config.json --quiet; then exit 1; fi
+      - run: node scripts/bootstrap-v03.mjs
+      - run: npm run check
