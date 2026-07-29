@@ -1,0 +1,1 @@
+{"minimumScore":80,"failOn":"error","requiredSections":["Purpose","Instructions","Safety"],"allowedPermissions":["filesystem:read","network"],"output":".skillcheck","regression":{"maxScoreDrop":5,"failOnNewErrors":true,"failOnPermissionExpansion":true}}
