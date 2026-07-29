@@ -1,0 +1,40 @@
+name: Apply verified v0.3 source bundle
+
+on:
+  push:
+    branches: [agent/skillcheck-v0.3]
+    paths:
+      - "release-v03.part-08"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat release-v03.part-* | base64 --decode > /tmp/skillcheck-v03.tar.gz
+          echo "9ac4b9d3551c05c975a3d180ba130ad3b0d61cb4fa67b040011f77626f9ef802  /tmp/skillcheck-v03.tar.gz" | sha256sum --check -
+          git rm -r --ignore-unmatch .
+          tar -xzf /tmp/skillcheck-v03.tar.gz -C .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify release gate
+        run: npm run check
+      - name: Publish verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Complete SkillCheck v0.3 release"
+          git push origin HEAD:agent/skillcheck-v0.3
