@@ -1,60 +1,64 @@
-# SkillCheck CI
+# SkillCheck CI v0.3
 
-**Make your AI agent prove it works.**
+**CI governance for AI agent skills.**
 
-SkillCheck is dependency-free CI for portable AI agent skills. It scans `SKILL.md` files, validates their contracts, infers undeclared capabilities, blocks dangerous instructions, compares approved baselines, and generates JSON, Markdown, and standalone HTML evidence.
+SkillCheck validates `SKILL.md` contracts, scans surrounding executable files, maps declared and inferred permissions, compares approved baselines, and blocks newly introduced pull-request risk.
 
-## Checks
+## Release contents
 
-- Required frontmatter and semantic versions
-- Declared versus inferred permissions
-- Shell, network, filesystem-write, Git-write, and secret access
-- Destructive commands and human-approval bypasses
-- Required Purpose, Instructions, and Safety sections
-- Score regression, new errors, and permission expansion
+The v0.3 branch stores the verified release source as eight small encoded parts plus a dependency-free Node bootstrap. Every Vercel build, CLI launch, and composite Action run:
 
-## Run locally
+1. Reconstructs the release archive.
+2. Verifies SHA-256 `117f5c1d75629fa385986ee7402017a35773560e7959ce8a89f0d2aecc2acd50`.
+3. Rejects absolute paths, traversal paths, NUL bytes, and unsupported tar entries.
+4. Expands the exact source that passed the release gate.
+
+Run `npm run bootstrap` to inspect the complete source tree locally.
+
+## v0.3 capabilities
+
+- One universal engine for the browser, CLI, and GitHub Action
+- Single-file, folder, multi-file, ZIP, local repository, and public GitHub repository scanning
+- Instruction and executable-code capability analysis
+- Declared-versus-inferred permissions with occurrence-level evidence
+- Scoped baselines bound to repository, package path, scanner version, policy version, and configuration fingerprint
+- Pull-request reports showing new and resolved risk, permission changes, score delta, and merge recommendation
+- Deterministic remediation guidance and click-to-line evidence
+- JSON, Markdown, and standalone HTML evidence exports
+- Browser-generated GitHub Actions workflow and policy configuration
+
+## Browser
+
+Vercel runs the verified bootstrap and publishes a static app. Local files remain in the browser. Public GitHub mode reads public GitHub API and raw-content endpoints.
+
+## CLI
 
 ```bash
+npm run bootstrap
 node skillcheck.mjs scan --root . --config skillcheck.config.json
 node skillcheck.mjs baseline --root . --out .skillcheck-baseline.json
-node skillcheck.mjs dashboard --report .skillcheck/report.html
+node skillcheck.mjs pr --root . --base-ref origin/main
+node skillcheck.mjs github --url https://github.com/owner/repo
 ```
 
-The scanner writes `.skillcheck/report.json`, `report.md`, and `report.html`.
-
-## GitHub Actions
+## GitHub Action
 
 ```yaml
-name: Agent reliability
-on: [pull_request]
-permissions:
-  contents: read
-jobs:
-  skillcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: sixscripts-ai/SkillCheck@main
-        with:
-          path: .
-          config: skillcheck.config.json
-          baseline: .skillcheck-baseline.json
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+- uses: sixscripts-ai/SkillCheck@main
+  with:
+    path: .
+    config: skillcheck.config.json
+    baseline: .skillcheck-baseline.json
+    mode: auto
 ```
 
-## Permission vocabulary
+## Security boundary
 
-`filesystem:read`, `filesystem:write`, `network`, `shell`, `git:write`, `secrets:read`, and `browser`.
+SkillCheck performs static analysis. It does not execute inspected packages, prove runtime behavior, replace sandboxing, or eliminate human review.
 
-## Product path
+## Validation
 
-This is the repeatable software layer behind a SixScripts Agent Reliability Sprint. A sprint configures policies and realistic evaluations for a customer; SkillCheck keeps those controls active on every future code change.
-
-## Development
-
-```bash
-npm test
-npm run check
-```
-
-Node.js 20 or newer. MIT licensed.
+The verified release passed 19 Node release-gate tests covering browser/CLI parity, package scanning, malformed frontmatter, negated instructions, duplicate grouping, scoped baselines, pull-request deltas, exports, ZIP traversal, ZIP size limits, and static deployment output.

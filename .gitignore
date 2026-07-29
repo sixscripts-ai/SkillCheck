@@ -1,5 +1,7 @@
 node_modules/
+dist-web/
 .skillcheck/
+.skillcheck-*/
 coverage/
 .DS_Store
 *.log
