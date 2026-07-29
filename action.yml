@@ -1,0 +1,40 @@
+name: SkillCheck CI
+description: Validate AI agent skills, permissions, safety boundaries, and regressions.
+author: SixScripts AI
+branding:
+  icon: shield
+  color: blue
+inputs:
+  path:
+    description: Repository-relative directory to scan.
+    required: false
+    default: .
+  config:
+    description: JSON config path relative to the scanned directory.
+    required: false
+    default: skillcheck.config.json
+  baseline:
+    description: Optional approved baseline path.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+    - id: scan
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+      run: |
+        root="${GITHUB_WORKSPACE}/${INPUT_PATH}"
+        args=(scan --root "$root" --config "$INPUT_CONFIG" --quiet)
+        if [[ -n "$INPUT_BASELINE" ]]; then args+=(--baseline "$INPUT_BASELINE"); fi
+        set +e
+        node "${GITHUB_ACTION_PATH}/skillcheck.mjs" "${args[@]}"
+        code=$?
+        if [[ -f "$root/.skillcheck/report.md" ]]; then cat "$root/.skillcheck/report.md" >> "$GITHUB_STEP_SUMMARY"; fi
+        exit "$code"
