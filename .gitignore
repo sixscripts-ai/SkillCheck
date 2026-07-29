@@ -1,0 +1,5 @@
+node_modules/
+.skillcheck/
+coverage/
+.DS_Store
+*.log
