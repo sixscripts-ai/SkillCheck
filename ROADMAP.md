@@ -11,15 +11,24 @@ SkillCheck is an independent release-safety product for AI agent skill packages.
 - Explain every decision with concrete files, lines, permissions, and remediation.
 - Never require Agent Skill Marketplace for SkillCheck to be useful.
 
-## Now: standalone foundation
+## Completed foundation
 
 - Validate the npm package from clean consumer projects.
 - Exercise the composite GitHub Action as a consumer would use it.
 - Pin public setup examples to immutable release tags.
 - Improve npm and repository metadata.
-- Strengthen report clarity, failure states, and remediation guidance.
-- Add scan-to-scan and pull-request risk comparisons.
-- Add SARIF output for code-scanning integrations.
+- Generate JSON, Markdown, and SARIF from one deterministic report.
+- Emit bounded pull-request annotations with exact repository-relative locations.
+- Compare base and head reports with score, status, finding, and permission changes.
+
+## Now: report and pull-request experience
+
+- Improve finding explanations and remediation guidance.
+- Add downloadable comparison reports in the browser.
+- Add first-class base-versus-head scanning to the GitHub Action.
+- Add a stable pull-request summary contract for other integrations.
+- Test SARIF upload against an unrelated consumer repository.
+- Validate annotations and merge recommendations on real pull requests.
 
 ## Next: persistent product
 
@@ -28,7 +37,6 @@ SkillCheck is an independent release-safety product for AI agent skill packages.
 - Custom organization policies.
 - Private GitHub repository connections.
 - Scheduled rescans and evidence-expiration alerts.
-- Pull-request summaries, annotations, and merge recommendations.
 - Team audit logs and evidence retention.
 
 ## Later: guided remediation and commercial features
@@ -49,11 +57,12 @@ SkillCheck is an independent release-safety product for AI agent skill packages.
 
 ## Stable v1 promotion gate
 
-Promote `1.0.0-rc.1` to `1.0.0` only after all of the following are true:
+Promote the release candidate to `1.0.0` only after all of the following are true:
 
 1. The npm package installs and runs in a clean external project.
 2. The GitHub Action passes a safe package and blocks an unsafe package.
 3. Browser scanning is verified at desktop and mobile widths.
 4. Package and policy fingerprints remain deterministic across environments.
 5. Stale report and stale evidence rejection are verified.
-6. At least one real standalone repository uses SkillCheck successfully.
+6. SARIF upload and exact-line annotations work in an unrelated repository.
+7. At least one real standalone repository uses SkillCheck successfully.

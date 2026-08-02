@@ -18,10 +18,16 @@ Scan a local package:
 npx skillcheck scan --root ./my-skill
 ```
 
+Every scan writes a report bundle to `.skillcheck/`:
+
+- `report.json` for applications and release gates
+- `report.md` for humans and workflow summaries
+- `report.sarif` for code-scanning systems
+
 Import the SDK:
 
 ```js
-import { scanPackage } from "@sixscripts-ai/skillcheck";
+import { scanPackage, reportToSarif } from "@sixscripts-ai/skillcheck";
 ```
 
 See [ROADMAP.md](./ROADMAP.md) for the standalone product plan.
@@ -34,6 +40,11 @@ import {
   fingerprintPackage,
   createReleaseEvidence,
   evaluateReleaseGate,
+  compareReports,
+  renderComparisonMarkdown,
+  renderReportMarkdown,
+  reportToGitHubAnnotations,
+  reportToSarif,
 } from "@sixscripts-ai/skillcheck";
 
 const files = [
@@ -42,6 +53,7 @@ const files = [
 ];
 
 const report = scanPackage({ files, policy });
+const sarif = reportToSarif(report);
 const evidence = createReleaseEvidence({
   report,
   evaluations: [{ suite: "quality", score: 100, passed: 8, failed: 0 }],
@@ -78,6 +90,8 @@ Legacy Marketplace values such as `read_files`, `write_files`, and `api_keys` ar
 - Instruction, script, manifest, workflow, environment-file, symlink, and install-hook inspection
 - Grouped findings with every file and line occurrence
 - Deterministic remediation
+- JSON, Markdown, and SARIF reports from one report model
+- GitHub annotations with exact repository-relative files and lines
 - Stable report and evidence schemas
 - Integrity-checked evaluation and sandbox evidence
 - Exact-draft release decisions
@@ -92,8 +106,12 @@ skillcheck scan --zip ./my-skill.zip
 skillcheck github --url https://github.com/owner/repository
 skillcheck baseline --root ./my-skill
 skillcheck compare --base base.json --head head.json
+skillcheck compare --base base.json --head head.json --format markdown --out comparison.md
+skillcheck annotations --report .skillcheck/report.json --max 50
 skillcheck gate --root ./my-skill --report .skillcheck/report.json --evidence evidence.json
 ```
+
+The comparison output includes score and status transitions, new findings, resolved findings, unchanged findings, added permissions, removed permissions, and a merge recommendation.
 
 For repository development, the same CLI is available at `node packages/cli/src/index.js`.
 
@@ -104,20 +122,39 @@ Pin the Action to an immutable release tag:
 ```yaml
 - uses: actions/checkout@v4
 - id: skillcheck
+  continue-on-error: true
   uses: sixscripts-ai/SkillCheck@v1.0.0-rc.1
   with:
     path: ./skills/my-skill
     config: skillcheck.config.json
     mode: scan
+    annotations: "true"
+    annotation-limit: "50"
 
 - name: Use SkillCheck outputs
+  if: always()
   run: |
     echo "status=${{ steps.skillcheck.outputs.status }}"
     echo "score=${{ steps.skillcheck.outputs.score }}"
     echo "fingerprint=${{ steps.skillcheck.outputs.fingerprint }}"
+    echo "sarif=${{ steps.skillcheck.outputs.sarif }}"
 ```
 
-The Action exposes the generated report path, status, score, package fingerprint, policy fingerprint, and publishability decision. These outputs are written before a blocked scan exits, so later diagnostic steps can still inspect the report when used with `continue-on-error`.
+The Action exposes the generated JSON and SARIF report paths, status, score, package fingerprint, policy fingerprint, and publishability decision. These outputs and annotations are written before a blocked scan exits, so later diagnostic steps can still inspect the report when used with `continue-on-error`.
+
+Repositories using GitHub code scanning can upload the generated SARIF in a later step:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+- name: Upload SkillCheck SARIF
+  if: always() && steps.skillcheck.outputs.sarif != ''
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.skillcheck.outputs.sarif }}
+```
 
 ## Browser and repository adapters
 

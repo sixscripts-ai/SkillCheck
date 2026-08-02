@@ -53,15 +53,22 @@ import assert from "node:assert/strict";
 import {
   fingerprintPackage,
   normalizePermissions,
+  renderReportMarkdown,
+  reportToGitHubAnnotations,
+  reportToSarif,
   scanPackage,
 } from "@sixscripts-ai/skillcheck";
 
 const files = [{ path: "SKILL.md", content: ${JSON.stringify(skillMarkdown)} }];
 const report = scanPackage({ files, generatedAt: "2026-01-01T00:00:00.000Z" });
+const sarif = reportToSarif(report);
 assert.equal(report.subject.skillName, "packaged-consumer");
 assert.equal(report.fingerprint, fingerprintPackage(files));
 assert.deepEqual(normalizePermissions(["read_files", "api_keys"]), ["filesystem:read", "secrets:read"]);
 assert.equal(report.schemaVersion, "1");
+assert.equal(sarif.version, "2.1.0");
+assert.deepEqual(reportToGitHubAnnotations(report), []);
+assert.match(renderReportMarkdown(report), /Release decision/);
 console.log("Installed SDK verified:", report.status, report.score);
 `);
   run(process.execPath, [verificationFile], temporaryRoot);
@@ -69,7 +76,9 @@ console.log("Installed SDK verified:", report.status, report.score);
   const bin = path.join(temporaryRoot, "node_modules", ".bin", process.platform === "win32" ? "skillcheck.cmd" : "skillcheck");
   run(bin, ["scan", "--root", fixtureRoot, "--quiet"], temporaryRoot);
   const report = JSON.parse(await readFile(path.join(fixtureRoot, ".skillcheck", "report.json"), "utf8"));
+  const sarif = JSON.parse(await readFile(path.join(fixtureRoot, ".skillcheck", "report.sarif"), "utf8"));
   assert.equal(report.subject.skillName, "packaged-consumer");
+  assert.equal(sarif.version, "2.1.0");
 
   console.log("Clean npm consumer verification passed.");
 } finally {
