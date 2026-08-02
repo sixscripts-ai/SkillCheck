@@ -45,9 +45,9 @@ outputs:
   fingerprint:
     description: SHA-256 fingerprint of the scanned package.
     value: ${{ steps.skillcheck.outputs.fingerprint }}
-  policy-fingerprint:
+  policy_fingerprint:
     description: SHA-256 fingerprint of the policy used for the scan.
-    value: ${{ steps.skillcheck.outputs.policy-fingerprint }}
+    value: ${{ steps.skillcheck.outputs.policy_fingerprint }}
   publishable:
     description: Whether the report gate considers the package publishable.
     value: ${{ steps.skillcheck.outputs.publishable }}
@@ -127,7 +127,7 @@ runs:
           status: report.status,
           score: String(report.score),
           fingerprint: report.fingerprint,
-          "policy-fingerprint": report.policyFingerprint,
+          policy_fingerprint: report.policyFingerprint,
           publishable: String(Boolean(report.gate?.publishable)),
         };
         fs.appendFileSync(

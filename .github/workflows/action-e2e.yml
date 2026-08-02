@@ -46,7 +46,7 @@ jobs:
           SAFE_STATUS: ${{ steps.safe.outputs.status }}
           SAFE_SCORE: ${{ steps.safe.outputs.score }}
           SAFE_FINGERPRINT: ${{ steps.safe.outputs.fingerprint }}
-          SAFE_POLICY_FINGERPRINT: ${{ steps.safe.outputs.policy-fingerprint }}
+          SAFE_POLICY_FINGERPRINT: ${{ steps.safe.outputs.policy_fingerprint }}
           SAFE_PUBLISHABLE: ${{ steps.safe.outputs.publishable }}
         run: |
           test "$SAFE_REPORT" = "consumer-safe/.skillcheck/report.json"
