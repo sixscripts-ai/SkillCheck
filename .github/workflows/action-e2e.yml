@@ -31,23 +31,34 @@ jobs:
           cp -R skillcheck-action/fixtures/unsafe consumer-unsafe
 
       - name: Safe package must pass
+        id: safe
         uses: ./skillcheck-action
         with:
           path: consumer-safe
           config: ""
           mode: scan
 
-      - name: Validate safe report
+      - name: Validate safe report and Action outputs
         shell: bash
+        env:
+          SAFE_REPORT: ${{ steps.safe.outputs.report }}
+          SAFE_STATUS: ${{ steps.safe.outputs.status }}
+          SAFE_SCORE: ${{ steps.safe.outputs.score }}
+          SAFE_FINGERPRINT: ${{ steps.safe.outputs.fingerprint }}
+          SAFE_POLICY_FINGERPRINT: ${{ steps.safe.outputs.policy-fingerprint }}
+          SAFE_PUBLISHABLE: ${{ steps.safe.outputs.publishable }}
         run: |
+          test "$SAFE_REPORT" = "consumer-safe/.skillcheck/report.json"
+          test "$SAFE_STATUS" = "pass"
+          test "$SAFE_PUBLISHABLE" = "true"
+          [[ "$SAFE_SCORE" =~ ^[0-9]+$ ]]
+          [[ "$SAFE_FINGERPRINT" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$SAFE_POLICY_FINGERPRINT" =~ ^sha256:[0-9a-f]{64}$ ]]
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           const report = JSON.parse(fs.readFileSync("consumer-safe/.skillcheck/report.json", "utf8"));
-          if (report.status !== "pass") {
-            throw new Error(`Expected safe package to pass, received ${report.status}`);
-          }
-          if (report.gate?.publishable !== true) {
-            throw new Error("Expected safe package to be publishable");
+          if (report.status !== "pass" || report.gate?.publishable !== true) {
+            throw new Error("Expected safe package to pass and be publishable");
           }
           NODE
 
@@ -60,22 +71,22 @@ jobs:
           config: ""
           mode: scan
 
-      - name: Validate unsafe failure and report
+      - name: Validate unsafe failure, report, and Action outputs
         shell: bash
         env:
           UNSAFE_OUTCOME: ${{ steps.unsafe.outcome }}
+          UNSAFE_REPORT: ${{ steps.unsafe.outputs.report }}
+          UNSAFE_STATUS: ${{ steps.unsafe.outputs.status }}
+          UNSAFE_PUBLISHABLE: ${{ steps.unsafe.outputs.publishable }}
         run: |
-          if [[ "$UNSAFE_OUTCOME" != "failure" ]]; then
-            echo "Expected unsafe Action step to fail, received: $UNSAFE_OUTCOME" >&2
-            exit 1
-          fi
+          test "$UNSAFE_OUTCOME" = "failure"
+          test "$UNSAFE_REPORT" = "consumer-unsafe/.skillcheck/report.json"
+          test "$UNSAFE_STATUS" = "block"
+          test "$UNSAFE_PUBLISHABLE" = "false"
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           const report = JSON.parse(fs.readFileSync("consumer-unsafe/.skillcheck/report.json", "utf8"));
-          if (report.status !== "block") {
-            throw new Error(`Expected unsafe package to block, received ${report.status}`);
-          }
-          if (report.gate?.publishable !== false) {
-            throw new Error("Expected unsafe package to be non-publishable");
+          if (report.status !== "block" || report.gate?.publishable !== false) {
+            throw new Error("Expected unsafe package to block and be non-publishable");
           }
           NODE
