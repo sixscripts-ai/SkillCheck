@@ -1,0 +1,201 @@
+:root {
+  --text: #f8f8fb;
+  --muted: #a6acb9;
+  --muted-2: #767e8e;
+  --red: #ff4655;
+  --red-2: #d81f3e;
+  --red-3: #761126;
+  --red-soft: rgba(255, 70, 85, .12);
+  --shadow: 0 28px 92px rgba(0, 0, 0, .38);
+  font-family: "Avenir Next", Avenir, "Segoe UI Variable", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-size: 15px;
+  line-height: 1.58;
+  letter-spacing: -.004em;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(118, 17, 38, .16), transparent 31%),
+    linear-gradient(315deg, rgba(216, 31, 62, .07), transparent 30%);
+}
+
+button, input, textarea { font-family: inherit; }
+h1, h2, h3, strong, .button { letter-spacing: -.014em; }
+
+.ambient-one {
+  background: radial-gradient(circle, rgba(216, 31, 62, .29), rgba(92, 9, 29, .09) 45%, transparent 70%);
+}
+.ambient-two {
+  background: radial-gradient(circle, rgba(255, 70, 85, .14), rgba(118, 17, 38, .04) 44%, transparent 68%);
+}
+
+.brand-mark {
+  border-color: rgba(255, 70, 85, .48);
+  background: linear-gradient(145deg, rgba(255, 70, 85, .24), rgba(118, 17, 38, .11));
+  box-shadow: 0 0 28px rgba(216, 31, 62, .16);
+}
+.brand strong { font-size: 15px; font-weight: 700; }
+.brand small { font-size: 11px; }
+.primary-nav button { font-size: 13px; font-weight: 600; }
+.primary-nav button.active::after {
+  background: linear-gradient(90deg, var(--red), var(--red-2));
+  box-shadow: 0 0 14px rgba(255, 70, 85, .42);
+}
+
+.eyebrow, .section-kicker {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.eyebrow { color: #e2a6ad; }
+.eyebrow span { box-shadow: 0 0 10px rgba(255, 70, 85, .68); }
+.hero-copy h1 {
+  font-size: clamp(58px, 7vw, 102px);
+  font-weight: 750;
+  letter-spacing: -.062em;
+}
+.hero-copy h1 em {
+  color: var(--red);
+  text-shadow: 0 0 46px rgba(216, 31, 62, .24);
+}
+.hero-lede { color: #bac0cb; font-size: 18px; line-height: 1.72; }
+.hero-trust { font-size: 12px; }
+.hero-trust span::before { box-shadow: 0 0 9px rgba(255, 70, 85, .68); }
+
+.button { min-height: 44px; font-size: 13px; }
+.button.large { min-height: 51px; font-size: 14px; }
+.button.compact { min-height: 36px; font-size: 12px; }
+.button.primary {
+  border-color: #ff5a67;
+  background: linear-gradient(135deg, #ff5360 0%, var(--red) 38%, var(--red-2) 100%);
+  box-shadow: 0 13px 30px rgba(216, 31, 62, .24), inset 0 1px rgba(255, 255, 255, .18);
+}
+.button.primary:hover {
+  box-shadow: 0 17px 42px rgba(216, 31, 62, .32), inset 0 1px rgba(255, 255, 255, .18);
+}
+
+.shield-stage {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 70, 85, .2), rgba(118, 17, 38, .09) 34%, transparent 67%);
+}
+.shield-stage::after {
+  border-color: rgba(255, 70, 85, .24);
+  background: radial-gradient(ellipse, rgba(255, 70, 85, .17), transparent 68%);
+  box-shadow: 0 0 42px rgba(216, 31, 62, .14);
+}
+.shield-core {
+  background: linear-gradient(150deg, rgba(255, 83, 96, .35), rgba(99, 10, 31, .54));
+  box-shadow: inset 0 0 0 2px rgba(255, 100, 112, .5);
+  filter: drop-shadow(0 0 31px rgba(216, 31, 62, .35));
+}
+.shield-core svg { stroke: #ff6672; }
+.shield-orbit { border-color: rgba(255, 70, 85, .17); }
+.signal { border-color: rgba(255, 88, 101, .24); color: #d98b95; font-size: 10px; }
+
+.scanner-card::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 70, 85, .82), transparent);
+}
+.scanner-head h2 { font-size: 22px; }
+.local-badge { font-size: 11px; }
+.source-tabs button { min-height: 38px; font-size: 12px; }
+.source-tabs button.active {
+  background: rgba(255, 70, 85, .11);
+  color: #ff9aa3;
+  box-shadow: inset 0 0 0 1px rgba(255, 70, 85, .22);
+}
+.dropzone {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 70, 85, .06), transparent 49%), #0a0d13;
+}
+.dropzone:hover, .dropzone.dragging {
+  border-color: rgba(255, 70, 85, .74);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 70, 85, .11), transparent 53%), #0b0e15;
+}
+.drop-icon { border-color: rgba(255, 70, 85, .34); font-size: 21px; }
+.dropzone strong { font-size: 18px; }
+.dropzone > span:not(.drop-icon):not(.browse-label) { font-size: 13px; }
+.browse-label { font-size: 12px; }
+.editor-toolbar { font-size: 12px; }
+.editor-toolbar button { font-size: 11px; }
+#editor { font-size: 13px; line-height: 1.76; }
+.github-source strong { font-size: 17px; }
+.github-source p, .github-source input { font-size: 13px; }
+.selection-summary { font-size: 12px; }
+.selection-dot { box-shadow: 0 0 11px rgba(255, 70, 85, .72); }
+
+.surface-head h2, .surface-head h3 { font-size: 18px; }
+.text-button, .copy-button { font-size: 11px; }
+.proof-grid strong { font-size: 14px; }
+.proof-grid p { font-size: 12px; }
+.report-title strong { font-size: 12px; }
+.report-title small { font-size: 10px; }
+.report-score { font-size: 13px; }
+
+.rail-brand, .report-tabs button { font-size: 12px; }
+.rail-subject strong { font-size: 13px; }
+.rail-callout strong { font-size: 12px; }
+.rail-callout p { font-size: 10px; }
+.report-tabs button.active { color: #ff9ca5; }
+.report-header h1 { font-size: 30px; }
+.report-header p { font-size: 11px; }
+.decision-card {
+  background: radial-gradient(circle at 15% 50%, rgba(255, 70, 85, .1), transparent 31%), linear-gradient(135deg, #11141d, #0c0f16);
+}
+.decision-card::before { border-top-color: rgba(255, 86, 99, .27); }
+.score-ring { box-shadow: 0 0 38px rgba(216, 31, 62, .15); }
+.decision-copy h2 { font-size: 29px; }
+.decision-copy > p:last-of-type { font-size: 13px; }
+.reason-list span { font-size: 10px; }
+.decision-facts span { font-size: 9px; }
+.decision-facts strong { font-size: 15px; }
+.release-summary > p { font-size: 12px; }
+.check-row { font-size: 11px; }
+.risk-summary > div { font-size: 11px; }
+.risk-summary strong { font-size: 12px; }
+.remediation-list p { font-size: 11px; }
+.panel-title-row h2 { font-size: 22px; }
+.filter-pills button { font-size: 10px; }
+.finding-head strong { font-size: 13px; }
+.finding-head small { font-size: 9px; }
+.finding > p { font-size: 12px; }
+.occurrences button { font-size: 10px; }
+.permission-card strong { font-size: 12px; }
+.permission-card p, .permission-state { font-size: 10px; }
+.package-fact span { font-size: 9px; }
+.package-fact strong { font-size: 12px; }
+.package-fact.mono strong { font-size: 10px; }
+.timeline-event strong { font-size: 12px; }
+.timeline-event p { font-size: 11px; }
+.timeline-event small { font-size: 9px; }
+
+.page-heading h1 { font-weight: 750; }
+.page-heading > p:last-child { font-size: 16px; }
+.page-surface h2, .code-surface h2 { font-size: 19px; }
+.policy-list span, .policy-list strong { font-size: 11px; }
+.code-surface pre { font-size: 12px; }
+.steps strong { font-size: 12px; }
+.steps p { font-size: 10px; }
+.doc-card h2 { font-size: 21px; }
+.doc-card p { font-size: 13px; }
+.boundary strong { font-size: 12px; }
+.boundary p { font-size: 11px; }
+.empty-state strong { font-size: 12px; }
+.empty-state p { font-size: 10px; }
+.toast { font-size: 12px; }
+
+@media (max-width: 850px) {
+  .hero-copy h1 { font-size: clamp(52px, 14vw, 78px); }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 15px; }
+  .primary-nav button { font-size: 12px; }
+  .hero-lede { font-size: 17px; }
+}
