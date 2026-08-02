@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="SkillCheck v1 deterministic scanner and release gate">
+  <title>SkillCheck v1</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="mark">SC</span><div><strong>SkillCheck</strong><small>deterministic agent release evidence</small></div></div>
+    <span class="version">v1.0.0-rc.1</span>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Build → Verify → Release</p>
+      <h1>Scan the exact package you plan to ship.</h1>
+      <p>SkillCheck produces a stable report, package fingerprint, permission map, remediation evidence, and release decision without sending files to a server.</p>
+    </section>
+    <section class="workspace">
+      <div class="editor-panel panel">
+        <div class="panel-head"><strong>SKILL.md</strong><div><button id="safe-sample">Safe sample</button><button id="unsafe-sample">Unsafe sample</button></div></div>
+        <textarea id="editor" spellcheck="false" aria-label="SKILL.md editor"></textarea>
+        <div class="upload-row">
+          <label class="upload">Add package files<input id="files" type="file" multiple webkitdirectory></label>
+          <button id="scan" class="primary">Run SkillCheck</button>
+        </div>
+      </div>
+      <aside class="result-panel panel">
+        <div class="score-row"><div><span id="status" class="status">READY</span><strong id="score">--</strong><small>/100</small></div><button id="download" disabled>Download report</button></div>
+        <div class="fingerprint"><span>Package fingerprint</span><code id="fingerprint">Not scanned</code></div>
+        <div class="metrics"><div><span>Declared</span><strong id="declared">0</strong></div><div><span>Inferred</span><strong id="inferred">0</strong></div><div><span>Findings</span><strong id="finding-count">0</strong></div></div>
+        <div id="findings" class="findings"><p class="empty">Run a scan to see evidence.</p></div>
+      </aside>
+    </section>
+    <section class="boundary panel"><strong>Static-analysis boundary</strong><p>SkillCheck does not execute uploaded code, prove runtime behavior, or replace sandboxing and human review. Its release evidence is bound to package and policy fingerprints.</p></section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
