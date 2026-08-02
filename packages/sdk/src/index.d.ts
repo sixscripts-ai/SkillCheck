@@ -19,6 +19,17 @@ export type SkillCheckReport = {
   declaredPermissions: CanonicalPermission[]; inferredPermissions: CanonicalPermission[]; findings: Finding[];
   packageRisks: Finding[]; remediation: string[]; gate: { publishable: boolean; reasons: string[] };
 };
+export type SkillCheckComparison = {
+  schemaVersion: "1"; baseFingerprint: string; headFingerprint: string; baseScore: number; headScore: number;
+  scoreDelta: number; baseStatus: ReportStatus; headStatus: ReportStatus; newFindings: Finding[];
+  resolvedFindings: Finding[]; unchangedFindings: Finding[]; addedPermissions: CanonicalPermission[];
+  removedPermissions: CanonicalPermission[]; permissionExpanded: boolean; recommendation: "approve" | "review" | "block";
+};
+export type GitHubAnnotation = {
+  level: "notice" | "warning" | "error"; file: string; line: number; title: string;
+  message: string; evidence: string; ruleId: string;
+};
+export type SarifLog = { version: "2.1.0"; $schema: string; runs: Array<Record<string, unknown>> };
 export type EvaluationEvidence = { suite?: string; score: number; passed?: number; failed?: number; completedAt?: string; reference?: string };
 export type SandboxEvidence = { id: string; status: "pass" | "fail"; completedAt?: string; provider?: string };
 export type ReleaseEvidence = {
@@ -44,7 +55,11 @@ export function scanPackage(input: { files: PackageFile[]; policy?: SkillCheckPo
 export function scanSkillMarkdown(markdown: string, options?: { path?: string; policy?: SkillCheckPolicy; context?: Record<string, unknown>; generatedAt?: string }): SkillCheckReport;
 export function createReleaseEvidence(input: { report: SkillCheckReport; evaluations?: EvaluationEvidence[]; sandbox?: SandboxEvidence; createdAt?: string; expiresAt?: string; source?: unknown }): ReleaseEvidence;
 export function evaluateReleaseGate(input: { report: SkillCheckReport; evidence?: ReleaseEvidence | null; policy?: SkillCheckPolicy; currentFingerprint: string; expectedPolicyFingerprint?: string; now?: string }): { decision: "allow" | "block"; publishable: boolean; checkedAt: string; fingerprint: string; reasons: string[] };
-export function compareReports(base: SkillCheckReport, head: SkillCheckReport): { schemaVersion: "1"; baseFingerprint: string; headFingerprint: string; scoreDelta: number; newFindings: Finding[]; resolvedFindings: Finding[]; addedPermissions: CanonicalPermission[]; removedPermissions: CanonicalPermission[]; recommendation: "approve" | "review" | "block" };
+export function compareReports(base: SkillCheckReport, head: SkillCheckReport): SkillCheckComparison;
+export function reportToSarif(report: SkillCheckReport, options?: { informationUri?: string; uriBaseId?: string; pathPrefix?: string }): SarifLog;
+export function reportToGitHubAnnotations(report: SkillCheckReport, options?: { maximum?: number | string; maxAnnotations?: number | string; pathPrefix?: string }): GitHubAnnotation[];
+export function renderReportMarkdown(report: SkillCheckReport): string;
+export function renderComparisonMarkdown(comparison: SkillCheckComparison): string;
 export function filesFromZip(input: ArrayBuffer | Uint8Array, options?: { maxEntries?: number; maxTotalBytes?: number; maxFileBytes?: number; maxCompressionRatio?: number }): Promise<Required<PackageFile>[]>;
 export function assertReport(report: SkillCheckReport): SkillCheckReport;
 export function assertEvidence(evidence: ReleaseEvidence): ReleaseEvidence;

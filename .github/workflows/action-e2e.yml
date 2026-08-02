@@ -38,10 +38,11 @@ jobs:
           config: ""
           mode: scan
 
-      - name: Validate safe report and Action outputs
+      - name: Validate safe reports and Action outputs
         shell: bash
         env:
           SAFE_REPORT: ${{ steps.safe.outputs.report }}
+          SAFE_SARIF: ${{ steps.safe.outputs.sarif }}
           SAFE_STATUS: ${{ steps.safe.outputs.status }}
           SAFE_SCORE: ${{ steps.safe.outputs.score }}
           SAFE_FINGERPRINT: ${{ steps.safe.outputs.fingerprint }}
@@ -49,6 +50,9 @@ jobs:
           SAFE_PUBLISHABLE: ${{ steps.safe.outputs.publishable }}
         run: |
           test "$SAFE_REPORT" = "consumer-safe/.skillcheck/report.json"
+          test "$SAFE_SARIF" = "consumer-safe/.skillcheck/report.sarif"
+          test -f "$SAFE_REPORT"
+          test -f "$SAFE_SARIF"
           test "$SAFE_STATUS" = "pass"
           test "$SAFE_PUBLISHABLE" = "true"
           [[ "$SAFE_SCORE" =~ ^[0-9]+$ ]]
@@ -57,8 +61,12 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           const report = JSON.parse(fs.readFileSync("consumer-safe/.skillcheck/report.json", "utf8"));
+          const sarif = JSON.parse(fs.readFileSync("consumer-safe/.skillcheck/report.sarif", "utf8"));
           if (report.status !== "pass" || report.gate?.publishable !== true) {
             throw new Error("Expected safe package to pass and be publishable");
+          }
+          if (sarif.version !== "2.1.0" || sarif.runs?.length !== 1) {
+            throw new Error("Expected a SARIF 2.1.0 report");
           }
           NODE
 
@@ -70,23 +78,36 @@ jobs:
           path: consumer-unsafe
           config: ""
           mode: scan
+          annotation-limit: "10"
 
-      - name: Validate unsafe failure, report, and Action outputs
+      - name: Validate unsafe failure, reports, and Action outputs
         shell: bash
         env:
           UNSAFE_OUTCOME: ${{ steps.unsafe.outcome }}
           UNSAFE_REPORT: ${{ steps.unsafe.outputs.report }}
+          UNSAFE_SARIF: ${{ steps.unsafe.outputs.sarif }}
           UNSAFE_STATUS: ${{ steps.unsafe.outputs.status }}
           UNSAFE_PUBLISHABLE: ${{ steps.unsafe.outputs.publishable }}
         run: |
           test "$UNSAFE_OUTCOME" = "failure"
           test "$UNSAFE_REPORT" = "consumer-unsafe/.skillcheck/report.json"
+          test "$UNSAFE_SARIF" = "consumer-unsafe/.skillcheck/report.sarif"
+          test -f "$UNSAFE_REPORT"
+          test -f "$UNSAFE_SARIF"
           test "$UNSAFE_STATUS" = "block"
           test "$UNSAFE_PUBLISHABLE" = "false"
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           const report = JSON.parse(fs.readFileSync("consumer-unsafe/.skillcheck/report.json", "utf8"));
+          const sarif = JSON.parse(fs.readFileSync("consumer-unsafe/.skillcheck/report.sarif", "utf8"));
           if (report.status !== "block" || report.gate?.publishable !== false) {
             throw new Error("Expected unsafe package to block and be non-publishable");
+          }
+          const results = sarif.runs?.[0]?.results ?? [];
+          if (!results.length || !results.some((result) => result.level === "error")) {
+            throw new Error("Expected unsafe SARIF output to contain an error result");
+          }
+          if (!results.every((result) => result.locations?.[0]?.physicalLocation?.artifactLocation?.uri?.startsWith("consumer-unsafe/"))) {
+            throw new Error("Expected repository-relative SARIF locations");
           }
           NODE

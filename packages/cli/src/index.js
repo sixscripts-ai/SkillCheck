@@ -3,7 +3,20 @@ import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { compareReports, evaluateReleaseGate, filesFromZip, fingerprintPackage, fingerprintPolicy, normalizePolicy, scanGitHubRepository, scanPackage } from "../../sdk/src/index.js";
+import {
+  compareReports,
+  evaluateReleaseGate,
+  filesFromZip,
+  fingerprintPackage,
+  fingerprintPolicy,
+  normalizePolicy,
+  renderComparisonMarkdown,
+  renderReportMarkdown,
+  reportToGitHubAnnotations,
+  reportToSarif,
+  scanGitHubRepository,
+  scanPackage,
+} from "../../sdk/src/index.js";
 
 const [command = "help", ...argv] = process.argv.slice(2);
 const args = parseArgs(argv);
@@ -13,6 +26,7 @@ try {
   else if (command === "github") await githubCommand(args);
   else if (command === "baseline") await baselineCommand(args);
   else if (command === "compare") await compareCommand(args);
+  else if (command === "annotations") await annotationsCommand(args);
   else if (command === "gate") await gateCommand(args);
   else help(command === "help" ? 0 : 1);
 } catch (error) {
@@ -26,10 +40,8 @@ async function scanCommand(args) {
   const files = args.zip ? await filesFromZip(await readFile(path.resolve(args.zip))) : await collectFiles(root);
   const report = scanPackage({files, policy, context:{repository:args.repository ?? null,ref:args.ref ?? null,path:args.path ?? "."}});
   const out = path.resolve(root, args.out ?? ".skillcheck");
-  await mkdir(out,{recursive:true});
-  await writeFile(path.join(out,"report.json"),JSON.stringify(report,null,2));
-  await writeFile(path.join(out,"report.md"),renderMarkdown(report));
-  if (!args.quiet) console.log(renderMarkdown(report));
+  await writeReportBundle(out, "report", report);
+  if (!args.quiet) console.log(renderReportMarkdown(report));
   if (!report.gate.publishable) process.exitCode = 1;
 }
 
@@ -38,10 +50,8 @@ async function githubCommand(args) {
   const policy = await loadPolicy(args.config);
   const report = await scanGitHubRepository(args.url, {policy, token:args.token});
   const out = path.resolve(args.out ?? ".skillcheck");
-  await mkdir(out,{recursive:true});
-  await writeFile(path.join(out,"github-report.json"),JSON.stringify(report,null,2));
-  await writeFile(path.join(out,"github-report.md"),renderMarkdown(report));
-  if (!args.quiet) console.log(renderMarkdown(report));
+  await writeReportBundle(out, "github-report", report);
+  if (!args.quiet) console.log(renderReportMarkdown(report));
   if (!report.gate.publishable) process.exitCode = 1;
 }
 
@@ -59,8 +69,17 @@ async function compareCommand(args) {
   const base = JSON.parse(await readFile(args.base,"utf8"));
   const head = JSON.parse(await readFile(args.head,"utf8"));
   const comparison = compareReports(base.report ?? base, head.report ?? head);
-  console.log(JSON.stringify(comparison,null,2));
+  const format = normalizeComparisonFormat(args.format, args.out);
+  const output = format === "markdown" ? renderComparisonMarkdown(comparison) : `${JSON.stringify(comparison,null,2)}\n`;
+  if (args.out) await writeFile(path.resolve(args.out), output); else process.stdout.write(output);
   if (comparison.recommendation === "block") process.exitCode = 1;
+}
+
+async function annotationsCommand(args) {
+  if (!args.report) throw new Error("annotations requires --report.");
+  const report = JSON.parse(await readFile(path.resolve(args.report),"utf8"));
+  const annotations = reportToGitHubAnnotations(report, {maximum: args.max ?? args.maximum});
+  for (const annotation of annotations) console.log(githubWorkflowCommand(annotation));
 }
 
 async function gateCommand(args) {
@@ -72,6 +91,15 @@ async function gateCommand(args) {
   const gate = evaluateReleaseGate({report,policy,evidence,currentFingerprint,expectedPolicyFingerprint:fingerprintPolicy(policy)});
   console.log(JSON.stringify(gate,null,2));
   if (!gate.publishable) process.exitCode = 1;
+}
+
+async function writeReportBundle(directory, basename, report) {
+  await mkdir(directory,{recursive:true});
+  await Promise.all([
+    writeFile(path.join(directory,`${basename}.json`),JSON.stringify(report,null,2)),
+    writeFile(path.join(directory,`${basename}.md`),renderReportMarkdown(report)),
+    writeFile(path.join(directory,`${basename}.sarif`),JSON.stringify(reportToSarif(report),null,2)),
+  ]);
 }
 
 async function loadPolicy(file) {
@@ -99,13 +127,30 @@ async function collectFiles(root) {
   return files;
 }
 
-function renderMarkdown(report) {
-  const lines = [`# SkillCheck ${report.status.toUpperCase()}`,"",`Score: **${report.score}/100**`,`Fingerprint: \`${report.fingerprint}\``,"",`Declared: ${report.declaredPermissions.join(", ") || "none"}`,`Inferred: ${report.inferredPermissions.join(", ") || "none"}`,""];
-  for (const finding of report.findings) {
-    lines.push(`## ${finding.severity.toUpperCase()} · ${finding.title}`,"",finding.remediation,"",...finding.occurrences.map((item) => `- \`${item.file}:${item.line}\` — ${item.evidence}`),"");
-  }
-  return `${lines.join("\n")}\n`;
+function normalizeComparisonFormat(format, output) {
+  const value = String(format ?? (String(output ?? "").endsWith(".md") ? "markdown" : "json")).toLowerCase();
+  if (!["json","markdown","md"].includes(value)) throw new Error("compare --format must be json or markdown.");
+  return value === "md" ? "markdown" : value;
 }
+
+function githubWorkflowCommand(annotation) {
+  const properties = [
+    `file=${escapeWorkflowProperty(annotation.file)}`,
+    `line=${annotation.line}`,
+    `title=${escapeWorkflowProperty(annotation.title)}`,
+  ].join(",");
+  const message = `${annotation.message} Evidence: ${annotation.evidence}`;
+  return `::${annotation.level} ${properties}::${escapeWorkflowData(message)}`;
+}
+
+function escapeWorkflowData(value) {
+  return String(value).replaceAll("%","%25").replaceAll("\r","%0D").replaceAll("\n","%0A");
+}
+
+function escapeWorkflowProperty(value) {
+  return escapeWorkflowData(value).replaceAll(":","%3A").replaceAll(",","%2C");
+}
+
 function parseArgs(values) {
   const result = {};
   for (let i=0;i<values.length;i++) {
@@ -117,7 +162,8 @@ function parseArgs(values) {
   }
   return result;
 }
+
 function help(code) {
-  console.log(`SkillCheck v1\n\nCommands:\n  scan --root <path> [--zip package.zip] [--config policy.json]\n  github --url <github.com/owner/repo> [--token token]\n  baseline --root <path> [--out baseline.json]\n  compare --base report.json --head report.json\n  gate --report report.json [--evidence evidence.json] [--root package]\n`);
+  console.log(`SkillCheck v1\n\nCommands:\n  scan --root <path> [--zip package.zip] [--config policy.json]\n  github --url <github.com/owner/repo> [--token token]\n  baseline --root <path> [--out baseline.json]\n  compare --base report.json --head report.json [--format json|markdown] [--out file]\n  annotations --report report.json [--max 50]\n  gate --report report.json [--evidence evidence.json] [--root package]\n`);
   process.exitCode=code;
 }

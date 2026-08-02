@@ -21,10 +21,21 @@ inputs:
     description: scan or gate.
     required: false
     default: scan
+  annotations:
+    description: Emit GitHub annotations for report occurrences.
+    required: false
+    default: "true"
+  annotation-limit:
+    description: Maximum GitHub annotations emitted by one scan.
+    required: false
+    default: "50"
 outputs:
   report:
     description: Repository-relative path to the generated JSON report.
     value: ${{ steps.skillcheck.outputs.report }}
+  sarif:
+    description: Repository-relative path to the generated SARIF report.
+    value: ${{ steps.skillcheck.outputs.sarif }}
   status:
     description: "SkillCheck report status: pass, review, or block."
     value: ${{ steps.skillcheck.outputs.status }}
@@ -54,6 +65,8 @@ runs:
         INPUT_CONFIG: ${{ inputs.config }}
         INPUT_EVIDENCE: ${{ inputs.evidence }}
         INPUT_MODE: ${{ inputs.mode }}
+        INPUT_ANNOTATIONS: ${{ inputs.annotations }}
+        INPUT_ANNOTATION_LIMIT: ${{ inputs.annotation-limit }}
       run: |
         set -euo pipefail
         config_args=()
@@ -66,10 +79,12 @@ runs:
           --root "${GITHUB_WORKSPACE}/${INPUT_PATH}" \
           --repository "${GITHUB_REPOSITORY}" \
           --ref "${GITHUB_SHA}" \
+          --path "$INPUT_PATH" \
           --quiet \
           "${config_args[@]}" || scan_status=$?
 
         report="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/report.json"
+        sarif="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/report.sarif"
         final_status=$scan_status
 
         if [[ "$INPUT_MODE" == "gate" && "$scan_status" -eq 0 ]]; then
@@ -91,16 +106,24 @@ runs:
           cat "$markdown" >> "$GITHUB_STEP_SUMMARY"
         fi
 
+        if [[ -f "$report" && "$INPUT_ANNOTATIONS" == "true" ]]; then
+          node "${GITHUB_ACTION_PATH}/packages/cli/src/index.js" annotations \
+            --report "$report" \
+            --max "$INPUT_ANNOTATION_LIMIT"
+        fi
+
         if [[ -f "$report" ]]; then
-          SKILLCHECK_REPORT_PATH="$report" node --input-type=module <<'NODE'
+          SKILLCHECK_REPORT_PATH="$report" SKILLCHECK_SARIF_PATH="$sarif" node --input-type=module <<'NODE'
         import fs from "node:fs";
         import path from "node:path";
 
         const reportPath = process.env.SKILLCHECK_REPORT_PATH;
+        const sarifPath = process.env.SKILLCHECK_SARIF_PATH;
         const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-        const relativeReport = path.relative(process.env.GITHUB_WORKSPACE, reportPath).split(path.sep).join("/");
+        const relative = (value) => path.relative(process.env.GITHUB_WORKSPACE, value).split(path.sep).join("/");
         const outputs = {
-          report: relativeReport,
+          report: relative(reportPath),
+          sarif: fs.existsSync(sarifPath) ? relative(sarifPath) : "",
           status: report.status,
           score: String(report.score),
           fingerprint: report.fingerprint,
