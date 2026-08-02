@@ -3,7 +3,7 @@ description: Scan packages, generate reports, compare pull-request risk, and enf
 author: SixScripts AI
 branding:
   icon: shield
-  color: blue
+  color: red
 inputs:
   path:
     description: Repository-relative package path.
@@ -21,6 +21,25 @@ inputs:
     description: scan or gate.
     required: false
     default: scan
+outputs:
+  report:
+    description: Repository-relative path to the generated JSON report.
+    value: ${{ steps.skillcheck.outputs.report }}
+  status:
+    description: "SkillCheck report status: pass, review, or block."
+    value: ${{ steps.skillcheck.outputs.status }}
+  score:
+    description: SkillCheck score from 0 to 100.
+    value: ${{ steps.skillcheck.outputs.score }}
+  fingerprint:
+    description: SHA-256 fingerprint of the scanned package.
+    value: ${{ steps.skillcheck.outputs.fingerprint }}
+  policy-fingerprint:
+    description: SHA-256 fingerprint of the policy used for the scan.
+    value: ${{ steps.skillcheck.outputs.policy-fingerprint }}
+  publishable:
+    description: Whether the report gate considers the package publishable.
+    value: ${{ steps.skillcheck.outputs.publishable }}
 runs:
   using: composite
   steps:
@@ -28,6 +47,7 @@ runs:
       with:
         node-version: "22"
     - name: Run SkillCheck
+      id: skillcheck
       shell: bash
       env:
         INPUT_PATH: ${{ inputs.path }}
@@ -40,21 +60,58 @@ runs:
         if [[ -n "$INPUT_CONFIG" && -f "${GITHUB_WORKSPACE}/${INPUT_CONFIG}" ]]; then
           config_args=(--config "${GITHUB_WORKSPACE}/${INPUT_CONFIG}")
         fi
+
+        scan_status=0
         node "${GITHUB_ACTION_PATH}/packages/cli/src/index.js" scan \
           --root "${GITHUB_WORKSPACE}/${INPUT_PATH}" \
           --repository "${GITHUB_REPOSITORY}" \
           --ref "${GITHUB_SHA}" \
           --quiet \
-          "${config_args[@]}"
+          "${config_args[@]}" || scan_status=$?
+
         report="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/report.json"
-        if [[ "$INPUT_MODE" == "gate" ]]; then
+        final_status=$scan_status
+
+        if [[ "$INPUT_MODE" == "gate" && "$scan_status" -eq 0 ]]; then
           evidence_args=()
-          if [[ -n "$INPUT_EVIDENCE" ]]; then evidence_args=(--evidence "${GITHUB_WORKSPACE}/${INPUT_EVIDENCE}"); fi
+          if [[ -n "$INPUT_EVIDENCE" ]]; then
+            evidence_args=(--evidence "${GITHUB_WORKSPACE}/${INPUT_EVIDENCE}")
+          fi
+          gate_status=0
           node "${GITHUB_ACTION_PATH}/packages/cli/src/index.js" gate \
             --report "$report" \
             --root "${GITHUB_WORKSPACE}/${INPUT_PATH}" \
             "${config_args[@]}" \
-            "${evidence_args[@]}"
+            "${evidence_args[@]}" || gate_status=$?
+          final_status=$gate_status
         fi
+
         markdown="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/report.md"
-        if [[ -f "$markdown" ]]; then cat "$markdown" >> "$GITHUB_STEP_SUMMARY"; fi
+        if [[ -f "$markdown" ]]; then
+          cat "$markdown" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        if [[ -f "$report" ]]; then
+          SKILLCHECK_REPORT_PATH="$report" node --input-type=module <<'NODE'
+        import fs from "node:fs";
+        import path from "node:path";
+
+        const reportPath = process.env.SKILLCHECK_REPORT_PATH;
+        const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+        const relativeReport = path.relative(process.env.GITHUB_WORKSPACE, reportPath).split(path.sep).join("/");
+        const outputs = {
+          report: relativeReport,
+          status: report.status,
+          score: String(report.score),
+          fingerprint: report.fingerprint,
+          "policy-fingerprint": report.policyFingerprint,
+          publishable: String(Boolean(report.gate?.publishable)),
+        };
+        fs.appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          Object.entries(outputs).map(([key, value]) => `${key}=${value}`).join("\n") + "\n",
+        );
+        NODE
+        fi
+
+        exit "$final_status"

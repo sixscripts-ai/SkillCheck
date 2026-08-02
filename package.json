@@ -46,6 +46,26 @@
     "release:verify": "npm run check && npm run test:package",
     "prepack": "npm run release:verify"
   },
+  "keywords": [
+    "ai-agent",
+    "agent-skills",
+    "static-analysis",
+    "security",
+    "release-gate",
+    "github-action",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sixscripts-ai/SkillCheck.git"
+  },
+  "homepage": "https://github.com/sixscripts-ai/SkillCheck#readme",
+  "bugs": {
+    "url": "https://github.com/sixscripts-ai/SkillCheck/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },

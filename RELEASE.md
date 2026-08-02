@@ -31,7 +31,7 @@ Confirm that report and evidence schema versions are intentionally unchanged or 
 
 ## 3. Merge the release pull request
 
-The pull request must be mergeable and have passing release-gate, web-smoke, and Vercel checks. Merge into `main` only after manual preview review.
+The pull request must be mergeable and have passing release-gate, web-smoke, Action end-to-end, and Vercel checks. Merge into `main` only after manual preview review.
 
 ## 4. Tag the release candidate
 
@@ -44,7 +44,7 @@ git push origin v1.0.0-rc.1
 
 ## 5. Publish the npm release candidate
 
-Authenticate with the npm account that owns the `@sixscripts` scope, then run:
+Authenticate with the npm account that owns the `@sixscripts-ai` scope, then run:
 
 ```bash
 npm publish --access public --tag next
@@ -59,26 +59,28 @@ npm init -y
 npm install @sixscripts-ai/skillcheck@next
 node -e "import('@sixscripts-ai/skillcheck').then(m => console.log(m.SCANNER_VERSION))"
 npx skillcheck help
+npm view @sixscripts-ai/skillcheck@1.0.0-rc.1 version
 ```
 
 ## 6. Verify the GitHub Action externally
 
-Use the tag from a separate repository:
+Use the immutable tag from a separate repository:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: sixscripts-ai/SkillCheck@v1.0.0-rc.1
+- id: skillcheck
+  uses: sixscripts-ai/SkillCheck@v1.0.0-rc.1
   with:
     path: .
     config: skillcheck.config.json
     mode: scan
 ```
 
-Confirm that the safe fixture passes, the unsafe fixture blocks, and the report is added to the workflow summary.
+Confirm that the safe fixture passes, the unsafe fixture blocks, the report is added to the workflow summary, and the Action outputs match the generated JSON report.
 
 ## 7. Promote to v1.0.0
 
-After the release candidate has been used successfully from npm, the CLI, the browser, the GitHub Action, and Agent Skill Marketplace:
+After the release candidate has been used successfully from npm, the CLI, the browser, the GitHub Action, and at least one real standalone repository:
 
 1. Change all release versions to `1.0.0`.
 2. Run `npm run release:verify` on Node.js 20 and 22.
@@ -87,4 +89,4 @@ After the release candidate has been used successfully from npm, the CLI, the br
 5. Run `npm publish --access public --tag latest`.
 6. Move the floating `v1` GitHub tag to the final release commit.
 
-Do not publish a release if package fingerprints, policy fingerprints, evidence integrity, stale-evidence rejection, or clean consumer installation tests fail.
+Do not publish a release if package fingerprints, policy fingerprints, evidence integrity, stale-evidence rejection, Action outputs, or clean consumer installation tests fail.

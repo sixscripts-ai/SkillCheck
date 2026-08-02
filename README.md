@@ -2,7 +2,31 @@
 
 SkillCheck is a deterministic SDK, CLI, GitHub Action, and browser scanner for portable AI agent skill packages. It produces fingerprint-bound evidence that a publishing system can store and verify before releasing the exact package that was scanned and tested.
 
-## Stable public API
+SkillCheck is being developed as a standalone product. Agent Skill Marketplace may integrate with it later, but SkillCheck does not depend on a marketplace, hosted runtime, or agent builder to be useful.
+
+## Quick start
+
+Install the current release candidate:
+
+```bash
+npm install @sixscripts-ai/skillcheck@next
+```
+
+Scan a local package:
+
+```bash
+npx skillcheck scan --root ./my-skill
+```
+
+Import the SDK:
+
+```js
+import { scanPackage } from "@sixscripts-ai/skillcheck";
+```
+
+See [ROADMAP.md](./ROADMAP.md) for the standalone product plan.
+
+## Public API
 
 ```js
 import {
@@ -75,22 +99,33 @@ For repository development, the same CLI is available at `node packages/cli/src/
 
 ## GitHub Action
 
+Pin the Action to an immutable release tag:
+
 ```yaml
 - uses: actions/checkout@v4
-- uses: sixscripts-ai/SkillCheck@main
+- id: skillcheck
+  uses: sixscripts-ai/SkillCheck@v1.0.0-rc.1
   with:
     path: ./skills/my-skill
     config: skillcheck.config.json
     mode: scan
+
+- name: Use SkillCheck outputs
+  run: |
+    echo "status=${{ steps.skillcheck.outputs.status }}"
+    echo "score=${{ steps.skillcheck.outputs.score }}"
+    echo "fingerprint=${{ steps.skillcheck.outputs.fingerprint }}"
 ```
+
+The Action exposes the generated report path, status, score, package fingerprint, policy fingerprint, and publishability decision. These outputs are written before a blocked scan exits, so later diagnostic steps can still inspect the report when used with `continue-on-error`.
 
 ## Browser and repository adapters
 
 The browser uses the same SDK and can scan pasted Markdown, selected files, folders, ZIP archives, or a public GitHub repository URL. Local files remain in the browser. GitHub scanning uses the public GitHub API and supports an optional token in SDK and CLI integrations.
 
-## Marketplace integration boundary
+## Integration boundary
 
-Agent Skill Marketplace should convert the current Builder draft into package files, call `scanPackage`, store the report and fingerprint, attach evaluation and sandbox evidence, and call `evaluateReleaseGate` immediately before public publishing. Scanner rules do not belong in Marketplace.
+Any publishing system should convert its current draft into package files, call `scanPackage`, store the report and fingerprint, attach evaluation and sandbox evidence, and call `evaluateReleaseGate` immediately before public publishing. Scanner rules belong in SkillCheck rather than being duplicated by an integrating product.
 
 ## Security boundary
 
