@@ -24,6 +24,7 @@ export {
   stableStringify,
 } from "../../core/src/index.js";
 export { filesFromZip } from "./zip.js";
+export { filesFromGitHub, parseGitHubRepositoryUrl, scanGitHubRepository } from "./github.js";
 
 export function scanSkillMarkdown(skillMd, options = {}) {
   return scan({

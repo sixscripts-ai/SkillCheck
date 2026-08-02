@@ -16,14 +16,19 @@
     <section class="hero">
       <p class="eyebrow">Build → Verify → Release</p>
       <h1>Scan the exact package you plan to ship.</h1>
-      <p>SkillCheck produces a stable report, package fingerprint, permission map, remediation evidence, and release decision without sending files to a server.</p>
+      <p>SkillCheck produces a stable report, package fingerprint, permission map, remediation evidence, and release decision without sending local files to a server.</p>
+    </section>
+    <section class="source-row panel">
+      <input id="github-url" type="url" placeholder="https://github.com/owner/repository" aria-label="Public GitHub repository URL">
+      <button id="scan-github">Scan public repository</button>
+      <span>or inspect local files below</span>
     </section>
     <section class="workspace">
       <div class="editor-panel panel">
         <div class="panel-head"><strong>SKILL.md</strong><div><button id="safe-sample">Safe sample</button><button id="unsafe-sample">Unsafe sample</button></div></div>
         <textarea id="editor" spellcheck="false" aria-label="SKILL.md editor"></textarea>
         <div class="upload-row">
-          <label class="upload">Add package files<input id="files" type="file" multiple webkitdirectory></label>
+          <div class="upload-actions"><label class="upload">Add files or ZIP<input id="files" type="file" multiple accept=".md,.txt,.json,.yaml,.yml,.toml,.js,.mjs,.cjs,.ts,.tsx,.py,.sh,.zip"></label><label class="upload">Add folder<input id="folder" type="file" multiple webkitdirectory></label></div>
           <button id="scan" class="primary">Run SkillCheck</button>
         </div>
       </div>

@@ -46,7 +46,7 @@ Legacy Marketplace values such as `read_files`, `write_files`, and `api_keys` ar
 
 ## What v1 owns
 
-- Package parsing and normalized file inventory
+- Package parsing and normalized file inventory from files, folders, ZIP archives, and public GitHub repositories
 - Deterministic SHA-256 package fingerprints
 - Policy fingerprints
 - Contract and semantic-version checks
@@ -64,6 +64,8 @@ Legacy Marketplace values such as `read_files`, `write_files`, and `api_keys` ar
 
 ```bash
 node packages/cli/src/index.js scan --root ./my-skill --config skillcheck.config.json
+node packages/cli/src/index.js scan --zip ./my-skill.zip
+node packages/cli/src/index.js github --url https://github.com/owner/repository
 node packages/cli/src/index.js baseline --root ./my-skill
 node packages/cli/src/index.js compare --base base.json --head head.json
 node packages/cli/src/index.js gate --root ./my-skill --report .skillcheck/report.json --evidence evidence.json
@@ -79,6 +81,10 @@ node packages/cli/src/index.js gate --root ./my-skill --report .skillcheck/repor
     config: skillcheck.config.json
     mode: scan
 ```
+
+## Browser and repository adapters
+
+The browser uses the same SDK and can scan pasted Markdown, selected files, folders, ZIP archives, or a public GitHub repository URL. Local files remain in the browser. GitHub scanning uses the public GitHub API and supports an optional token in SDK and CLI integrations.
 
 ## Marketplace integration boundary
 

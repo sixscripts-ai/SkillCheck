@@ -51,3 +51,6 @@ export function assertEvidence(evidence: ReleaseEvidence): ReleaseEvidence;
 export function sha256(value: unknown): string;
 export function stableStringify(value: unknown): string;
 export function parseFrontmatter(markdown: string): { data: Record<string, unknown>; body: string; errors: string[] };
+export function parseGitHubRepositoryUrl(value: string): { owner: string; repo: string; ref: string | null; packagePath: string };
+export function filesFromGitHub(url: string, options?: { token?: string; fetch?: typeof fetch; maxEntries?: number; maxTotalBytes?: number; maxFileBytes?: number; concurrency?: number }): Promise<Required<PackageFile>[]>;
+export function scanGitHubRepository(url: string, options?: { token?: string; fetch?: typeof fetch; policy?: SkillCheckPolicy; generatedAt?: string; maxEntries?: number; maxTotalBytes?: number; maxFileBytes?: number; concurrency?: number }): Promise<SkillCheckReport>;

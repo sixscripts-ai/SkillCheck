@@ -3,13 +3,14 @@ import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { compareReports, evaluateReleaseGate, fingerprintPackage, fingerprintPolicy, normalizePolicy, scanPackage } from "../../sdk/src/index.js";
+import { compareReports, evaluateReleaseGate, filesFromZip, fingerprintPackage, fingerprintPolicy, normalizePolicy, scanGitHubRepository, scanPackage } from "../../sdk/src/index.js";
 
 const [command = "help", ...argv] = process.argv.slice(2);
 const args = parseArgs(argv);
 
 try {
   if (command === "scan") await scanCommand(args);
+  else if (command === "github") await githubCommand(args);
   else if (command === "baseline") await baselineCommand(args);
   else if (command === "compare") await compareCommand(args);
   else if (command === "gate") await gateCommand(args);
@@ -22,12 +23,24 @@ try {
 async function scanCommand(args) {
   const root = path.resolve(args.root ?? ".");
   const policy = await loadPolicy(args.config);
-  const files = await collectFiles(root);
+  const files = args.zip ? await filesFromZip(await readFile(path.resolve(args.zip))) : await collectFiles(root);
   const report = scanPackage({files, policy, context:{repository:args.repository ?? null,ref:args.ref ?? null,path:args.path ?? "."}});
   const out = path.resolve(root, args.out ?? ".skillcheck");
   await mkdir(out,{recursive:true});
   await writeFile(path.join(out,"report.json"),JSON.stringify(report,null,2));
   await writeFile(path.join(out,"report.md"),renderMarkdown(report));
+  if (!args.quiet) console.log(renderMarkdown(report));
+  if (!report.gate.publishable) process.exitCode = 1;
+}
+
+async function githubCommand(args) {
+  if (!args.url) throw new Error("github requires --url.");
+  const policy = await loadPolicy(args.config);
+  const report = await scanGitHubRepository(args.url, {policy, token:args.token});
+  const out = path.resolve(args.out ?? ".skillcheck");
+  await mkdir(out,{recursive:true});
+  await writeFile(path.join(out,"github-report.json"),JSON.stringify(report,null,2));
+  await writeFile(path.join(out,"github-report.md"),renderMarkdown(report));
   if (!args.quiet) console.log(renderMarkdown(report));
   if (!report.gate.publishable) process.exitCode = 1;
 }
@@ -105,6 +118,6 @@ function parseArgs(values) {
   return result;
 }
 function help(code) {
-  console.log(`SkillCheck v1\n\nCommands:\n  scan --root <path> [--config policy.json]\n  baseline --root <path> [--out baseline.json]\n  compare --base report.json --head report.json\n  gate --report report.json [--evidence evidence.json] [--root package]\n`);
+  console.log(`SkillCheck v1\n\nCommands:\n  scan --root <path> [--zip package.zip] [--config policy.json]\n  github --url <github.com/owner/repo> [--token token]\n  baseline --root <path> [--out baseline.json]\n  compare --base report.json --head report.json\n  gate --report report.json [--evidence evidence.json] [--root package]\n`);
   process.exitCode=code;
 }
