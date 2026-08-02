@@ -1,0 +1,81 @@
+name: SkillCheck Action end-to-end
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skillcheck-action-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  consumer-smoke:
+    name: Consumer-style safe and unsafe scans
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out SkillCheck as an action dependency
+        uses: actions/checkout@v4
+        with:
+          path: skillcheck-action
+
+      - name: Prepare isolated consumer packages
+        shell: bash
+        run: |
+          cp -R skillcheck-action/fixtures/safe consumer-safe
+          cp -R skillcheck-action/fixtures/unsafe consumer-unsafe
+
+      - name: Safe package must pass
+        uses: ./skillcheck-action
+        with:
+          path: consumer-safe
+          config: ""
+          mode: scan
+
+      - name: Validate safe report
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const report = JSON.parse(fs.readFileSync("consumer-safe/.skillcheck/report.json", "utf8"));
+          if (report.status !== "pass") {
+            throw new Error(`Expected safe package to pass, received ${report.status}`);
+          }
+          if (report.gate?.publishable !== true) {
+            throw new Error("Expected safe package to be publishable");
+          }
+          NODE
+
+      - name: Unsafe package must be blocked
+        id: unsafe
+        continue-on-error: true
+        uses: ./skillcheck-action
+        with:
+          path: consumer-unsafe
+          config: ""
+          mode: scan
+
+      - name: Validate unsafe failure and report
+        shell: bash
+        env:
+          UNSAFE_OUTCOME: ${{ steps.unsafe.outcome }}
+        run: |
+          if [[ "$UNSAFE_OUTCOME" != "failure" ]]; then
+            echo "Expected unsafe Action step to fail, received: $UNSAFE_OUTCOME" >&2
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const report = JSON.parse(fs.readFileSync("consumer-unsafe/.skillcheck/report.json", "utf8"));
+          if (report.status !== "block") {
+            throw new Error(`Expected unsafe package to block, received ${report.status}`);
+          }
+          if (report.gate?.publishable !== false) {
+            throw new Error("Expected unsafe package to be non-publishable");
+          }
+          NODE
