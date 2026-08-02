@@ -63,13 +63,15 @@ Legacy Marketplace values such as `read_files`, `write_files`, and `api_keys` ar
 ## CLI
 
 ```bash
-node packages/cli/src/index.js scan --root ./my-skill --config skillcheck.config.json
-node packages/cli/src/index.js scan --zip ./my-skill.zip
-node packages/cli/src/index.js github --url https://github.com/owner/repository
-node packages/cli/src/index.js baseline --root ./my-skill
-node packages/cli/src/index.js compare --base base.json --head head.json
-node packages/cli/src/index.js gate --root ./my-skill --report .skillcheck/report.json --evidence evidence.json
+skillcheck scan --root ./my-skill --config skillcheck.config.json
+skillcheck scan --zip ./my-skill.zip
+skillcheck github --url https://github.com/owner/repository
+skillcheck baseline --root ./my-skill
+skillcheck compare --base base.json --head head.json
+skillcheck gate --root ./my-skill --report .skillcheck/report.json --evidence evidence.json
 ```
+
+For repository development, the same CLI is available at `node packages/cli/src/index.js`.
 
 ## GitHub Action
 
@@ -97,9 +99,14 @@ SkillCheck performs static analysis. It does not execute inspected packages, pro
 ## Development
 
 ```bash
+npm ci --ignore-scripts
 npm test
 npm run build:web
 npm run check
+npm run test:package
+npm run release:verify
 ```
+
+`npm run test:package` packs SkillCheck, installs it into a clean temporary consumer project, imports the public SDK, and runs the installed CLI. The release workflow is documented in [RELEASE.md](./RELEASE.md).
 
 Node.js 20 or newer. MIT licensed.

@@ -42,7 +42,9 @@
     "test": "node --test tests/*.test.mjs",
     "build:web": "node scripts/build-web.mjs",
     "check": "npm test && npm run build:web && node packages/cli/src/index.js scan --root fixtures/safe --quiet && node tests/assert-unsafe-blocked.mjs",
-    "prepack": "npm run check"
+    "test:package": "node scripts/verify-package-install.mjs",
+    "release:verify": "npm run check && npm run test:package",
+    "prepack": "npm run release:verify"
   },
   "engines": {
     "node": ">=20"
