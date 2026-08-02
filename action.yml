@@ -1,5 +1,4 @@
 name: SkillCheck v1
-summary: Deterministic release gate for AI agent skill packages
 description: Scan packages, generate reports, compare pull-request risk, and enforce fingerprint-bound evidence.
 author: SixScripts AI
 branding:
