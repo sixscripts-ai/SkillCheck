@@ -1,61 +1,61 @@
-name: SkillCheck CI
-description: Scan AI agent skill packages and block pull-request regressions.
+name: SkillCheck v1
+summary: Deterministic release gate for AI agent skill packages
+description: Scan packages, generate reports, compare pull-request risk, and enforce fingerprint-bound evidence.
 author: SixScripts AI
 branding:
   icon: shield
   color: blue
 inputs:
   path:
-    description: Repository-relative package path to scan.
+    description: Repository-relative package path.
     required: false
     default: .
   config:
-    description: Policy configuration path.
+    description: Repository-relative policy JSON path.
     required: false
     default: skillcheck.config.json
-  baseline:
-    description: Approved baseline path used for non-PR scans.
+  evidence:
+    description: Optional release evidence JSON path.
     required: false
-    default: .skillcheck-baseline.json
+    default: ""
   mode:
-    description: auto, scan, or pr.
+    description: scan or gate.
     required: false
-    default: auto
+    default: scan
 runs:
   using: composite
   steps:
     - uses: actions/setup-node@v4
       with:
         node-version: "22"
-    - name: Verify and expand SkillCheck v0.3
-      shell: bash
-      run: node "${GITHUB_ACTION_PATH}/scripts/bootstrap-v03.mjs"
     - name: Run SkillCheck
       shell: bash
       env:
         INPUT_PATH: ${{ inputs.path }}
         INPUT_CONFIG: ${{ inputs.config }}
-        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_EVIDENCE: ${{ inputs.evidence }}
         INPUT_MODE: ${{ inputs.mode }}
       run: |
         set -euo pipefail
-        mode="$INPUT_MODE"
-        if [[ "$mode" == "auto" ]]; then
-          if [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" && -n "${GITHUB_BASE_REF:-}" ]]; then mode="pr"; else mode="scan"; fi
+        config_args=()
+        if [[ -n "$INPUT_CONFIG" && -f "${GITHUB_WORKSPACE}/${INPUT_CONFIG}" ]]; then
+          config_args=(--config "${GITHUB_WORKSPACE}/${INPUT_CONFIG}")
         fi
-        if [[ "$mode" == "pr" ]]; then
-          git fetch --no-tags origin "${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
-          node "${GITHUB_ACTION_PATH}/skillcheck.mjs" pr \
+        node "${GITHUB_ACTION_PATH}/packages/cli/src/index.js" scan \
+          --root "${GITHUB_WORKSPACE}/${INPUT_PATH}" \
+          --repository "${GITHUB_REPOSITORY}" \
+          --ref "${GITHUB_SHA}" \
+          --quiet \
+          "${config_args[@]}"
+        report="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/report.json"
+        if [[ "$INPUT_MODE" == "gate" ]]; then
+          evidence_args=()
+          if [[ -n "$INPUT_EVIDENCE" ]]; then evidence_args=(--evidence "${GITHUB_WORKSPACE}/${INPUT_EVIDENCE}"); fi
+          node "${GITHUB_ACTION_PATH}/packages/cli/src/index.js" gate \
+            --report "$report" \
             --root "${GITHUB_WORKSPACE}/${INPUT_PATH}" \
-            --config "${GITHUB_WORKSPACE}/${INPUT_CONFIG}" \
-            --base-ref "origin/${GITHUB_BASE_REF}" \
-            --repository "${GITHUB_REPOSITORY}" \
-            --quiet
-          report="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/pr-report.md"
-        else
-          args=(scan --root "${GITHUB_WORKSPACE}/${INPUT_PATH}" --config "${GITHUB_WORKSPACE}/${INPUT_CONFIG}" --repository "${GITHUB_REPOSITORY}" --ref "${GITHUB_SHA}" --quiet)
-          if [[ -n "$INPUT_BASELINE" && -f "${GITHUB_WORKSPACE}/${INPUT_BASELINE}" ]]; then args+=(--baseline "${GITHUB_WORKSPACE}/${INPUT_BASELINE}"); fi
-          node "${GITHUB_ACTION_PATH}/skillcheck.mjs" "${args[@]}"
-          report="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/report.md"
+            "${config_args[@]}" \
+            "${evidence_args[@]}"
         fi
-        if [[ -f "$report" ]]; then cat "$report" >> "$GITHUB_STEP_SUMMARY"; fi
+        markdown="${GITHUB_WORKSPACE}/${INPUT_PATH}/.skillcheck/report.md"
+        if [[ -f "$markdown" ]]; then cat "$markdown" >> "$GITHUB_STEP_SUMMARY"; fi

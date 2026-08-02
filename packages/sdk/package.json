@@ -1,0 +1,11 @@
+{
+  "name": "@sixscripts/skillcheck-sdk",
+  "version": "1.0.0-rc.1",
+  "type": "module",
+  "exports": "./src/index.js",
+  "dependencies": {
+    "@sixscripts/skillcheck-core": "workspace:*"
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}
