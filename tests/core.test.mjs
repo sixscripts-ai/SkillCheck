@@ -134,3 +134,9 @@ test("report comparison isolates new risk", () => {
 test("default policy fingerprint is stable", () => {
   assert.equal(fingerprintPolicy(DEFAULT_POLICY),fingerprintPolicy(normalizePolicy({})));
 });
+
+test("scanSkillMarkdown is synchronous through the public SDK", async () => {
+  const { scanSkillMarkdown } = await import("../packages/sdk/src/index.js");
+  const report = scanSkillMarkdown(safeMd, { generatedAt: fixedTime });
+  assert.equal(report.status, "pass");
+});

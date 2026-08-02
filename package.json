@@ -4,10 +4,24 @@
   "description": "Deterministic SDK, CLI, GitHub Action, and browser scanner for AI agent skill packages",
   "type": "module",
   "private": false,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "exports": {
-    ".": "./packages/sdk/src/index.js",
-    "./core": "./packages/core/src/index.js",
+    ".": {
+      "types": "./packages/sdk/src/index.d.ts",
+      "import": "./packages/sdk/src/index.js"
+    },
+    "./core": {
+      "types": "./packages/core/src/index.d.ts",
+      "import": "./packages/core/src/index.js"
+    },
+    "./zip": {
+      "types": "./packages/sdk/src/index.d.ts",
+      "import": "./packages/sdk/src/zip.js"
+    },
+    "./schemas/report": "./schemas/report.schema.json",
+    "./schemas/evidence": "./schemas/evidence.schema.json",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -19,7 +33,10 @@
     "packages/cli/src",
     "action.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "packages/sdk/src/index.d.ts",
+    "packages/core/src/index.d.ts",
+    "schemas"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sixscripts.ai/schemas/skillcheck-evidence-v1.json",
+  "title": "SkillCheck Release Evidence v1",
+  "type": "object",
+  "required": ["schemaVersion", "scannerVersion", "createdAt", "fingerprint", "policyFingerprint", "report", "evaluations", "sandbox", "integrity"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "scannerVersion": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": ["string", "null"], "format": "date-time" },
+    "fingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "policyFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "evaluations": { "type": "array" },
+    "sandbox": { "type": ["object", "null"] },
+    "integrity": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}
