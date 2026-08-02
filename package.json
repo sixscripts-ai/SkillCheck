@@ -1,17 +1,50 @@
 {
   "name": "@sixscripts/skillcheck",
-  "version": "0.3.0",
-  "description": "CI governance and package-level static analysis for AI agent skills",
+  "version": "1.0.0-rc.1",
+  "description": "Deterministic SDK, CLI, GitHub Action, and browser scanner for AI agent skill packages",
   "type": "module",
-  "bin": {
-    "skillcheck": "scripts/skillcheck-bootstrap.mjs"
+  "private": false,
+  "workspaces": [
+    "packages/*"
+  ],
+  "exports": {
+    ".": {
+      "types": "./packages/sdk/src/index.d.ts",
+      "import": "./packages/sdk/src/index.js"
+    },
+    "./core": {
+      "types": "./packages/core/src/index.d.ts",
+      "import": "./packages/core/src/index.js"
+    },
+    "./zip": {
+      "types": "./packages/sdk/src/index.d.ts",
+      "import": "./packages/sdk/src/zip.js"
+    },
+    "./schemas/report": "./schemas/report.schema.json",
+    "./schemas/evidence": "./schemas/evidence.schema.json",
+    "./package.json": "./package.json"
   },
+  "bin": {
+    "skillcheck": "./packages/cli/src/index.js"
+  },
+  "files": [
+    "packages/core/src",
+    "packages/sdk/src",
+    "packages/cli/src",
+    "action.yml",
+    "README.md",
+    "LICENSE",
+    "packages/sdk/src/index.d.ts",
+    "packages/core/src/index.d.ts",
+    "schemas"
+  ],
   "scripts": {
-    "bootstrap": "node scripts/bootstrap-v03.mjs",
-    "build": "node scripts/bootstrap-v03.mjs && node scripts/build-web.mjs",
-    "build:web": "node scripts/bootstrap-v03.mjs && node scripts/build-web.mjs",
-    "test": "node scripts/bootstrap-v03.mjs && node --test tests/*.test.mjs",
-    "check": "node scripts/bootstrap-v03.mjs && node --test tests/*.test.mjs && node scripts/build-web.mjs && node skillcheck.mjs scan --root examples/safe --config ../../skillcheck.config.json --quiet && node tests/assert-unsafe-blocked.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "check": "npm test && npm run build:web && node packages/cli/src/index.js scan --root fixtures/safe --quiet && node tests/assert-unsafe-blocked.mjs",
+    "test:package": "node scripts/verify-package-install.mjs",
+    "release:verify": "npm run check && npm run test:package",
+    "prepack": "npm run release:verify"
   },
   "engines": {
     "node": ">=20"

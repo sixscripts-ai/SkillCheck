@@ -1,0 +1,15 @@
+{
+  "name": "@sixscripts/skillcheck-cli",
+  "version": "1.0.0-rc.1",
+  "type": "module",
+  "bin": {
+    "skillcheck": "./src/index.js"
+  },
+  "dependencies": {
+    "@sixscripts/skillcheck-sdk": "1.0.0-rc.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

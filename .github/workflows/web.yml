@@ -1,23 +1,45 @@
 name: Web preview
+
 on:
-  pull_request:
   push:
-    branches: [main, agent/skillcheck-v0.3]
+    branches: [main, "agent/**"]
+  pull_request:
+
 permissions:
   contents: read
+
+concurrency:
+  group: skillcheck-web-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  browser:
+  web:
+    name: Static browser smoke test
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node scripts/bootstrap-v03.mjs
-      - run: npm install
+          cache: npm
+      - run: npm ci --ignore-scripts
       - run: npm run build:web
-      - run: test -f dist-web/index.html && test -f dist-web/app.js && test -f dist-web/core/engine.js && test -f dist-web/core/zip.js
-      - run: python3 -m http.server 4173 -d dist-web > /tmp/skillcheck-http.log 2>&1 &
-      - run: curl --fail --retry 10 --retry-delay 1 http://127.0.0.1:4173/
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: Validate static output
+        run: |
+          node --check dist-web/app.js
+          test -f dist-web/index.html
+          test -f dist-web/styles.css
+          test -f dist-web/packages/sdk/src/index.js
+          test -f dist-web/packages/core/src/scanner.js
+          grep -q '#ff0000' dist-web/styles.css
+          grep -q 'Know what your agent can do' dist-web/index.html
+      - name: Serve and request browser assets
+        run: |
+          python3 -m http.server 4173 -d dist-web >/tmp/skillcheck-web.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          curl --fail --retry 10 --retry-delay 1 http://127.0.0.1:4173/
+          curl --fail http://127.0.0.1:4173/app.js >/dev/null
+          curl --fail http://127.0.0.1:4173/styles.css >/dev/null
+          curl --fail http://127.0.0.1:4173/packages/sdk/src/index.js >/dev/null

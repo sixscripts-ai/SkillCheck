@@ -1,64 +1,112 @@
-# SkillCheck CI v0.3
+# SkillCheck v1
 
-**CI governance for AI agent skills.**
+SkillCheck is a deterministic SDK, CLI, GitHub Action, and browser scanner for portable AI agent skill packages. It produces fingerprint-bound evidence that a publishing system can store and verify before releasing the exact package that was scanned and tested.
 
-SkillCheck validates `SKILL.md` contracts, scans surrounding executable files, maps declared and inferred permissions, compares approved baselines, and blocks newly introduced pull-request risk.
+## Stable public API
 
-## Release contents
+```js
+import {
+  scanPackage,
+  fingerprintPackage,
+  createReleaseEvidence,
+  evaluateReleaseGate,
+} from "@sixscripts/skillcheck";
 
-The v0.3 branch stores the verified release source as eight small encoded parts plus a dependency-free Node bootstrap. Every Vercel build, CLI launch, and composite Action run:
+const files = [
+  { path: "SKILL.md", content: skillMarkdown },
+  { path: "scripts/run.js", content: sourceCode },
+];
 
-1. Reconstructs the release archive.
-2. Verifies SHA-256 `117f5c1d75629fa385986ee7402017a35773560e7959ce8a89f0d2aecc2acd50`.
-3. Rejects absolute paths, traversal paths, NUL bytes, and unsupported tar entries.
-4. Expands the exact source that passed the release gate.
+const report = scanPackage({ files, policy });
+const evidence = createReleaseEvidence({
+  report,
+  evaluations: [{ suite: "quality", score: 100, passed: 8, failed: 0 }],
+  sandbox: { id: "run_123", status: "pass", completedAt: new Date().toISOString() },
+});
 
-Run `npm run bootstrap` to inspect the complete source tree locally.
+const gate = evaluateReleaseGate({
+  report,
+  evidence,
+  policy,
+  currentFingerprint: fingerprintPackage(files),
+});
+```
 
-## v0.3 capabilities
+## Canonical permission vocabulary
 
-- One universal engine for the browser, CLI, and GitHub Action
-- Single-file, folder, multi-file, ZIP, local repository, and public GitHub repository scanning
-- Instruction and executable-code capability analysis
-- Declared-versus-inferred permissions with occurrence-level evidence
-- Scoped baselines bound to repository, package path, scanner version, policy version, and configuration fingerprint
-- Pull-request reports showing new and resolved risk, permission changes, score delta, and merge recommendation
-- Deterministic remediation guidance and click-to-line evidence
-- JSON, Markdown, and standalone HTML evidence exports
-- Browser-generated GitHub Actions workflow and policy configuration
+- `filesystem:read`
+- `filesystem:write`
+- `network`
+- `shell`
+- `browser`
+- `git:write`
+- `secrets:read`
 
-## Browser
+Legacy Marketplace values such as `read_files`, `write_files`, and `api_keys` are normalized by the SDK.
 
-Vercel runs the verified bootstrap and publishes a static app. Local files remain in the browser. Public GitHub mode reads public GitHub API and raw-content endpoints.
+## What v1 owns
+
+- Package parsing and normalized file inventory from files, folders, ZIP archives, and public GitHub repositories
+- Deterministic SHA-256 package fingerprints
+- Policy fingerprints
+- Contract and semantic-version checks
+- Declared versus inferred permissions
+- Instruction, script, manifest, workflow, environment-file, symlink, and install-hook inspection
+- Grouped findings with every file and line occurrence
+- Deterministic remediation
+- Stable report and evidence schemas
+- Integrity-checked evaluation and sandbox evidence
+- Exact-draft release decisions
+- Base-versus-head risk comparisons
+- CLI, GitHub Action, and browser parity
 
 ## CLI
 
 ```bash
-npm run bootstrap
-node skillcheck.mjs scan --root . --config skillcheck.config.json
-node skillcheck.mjs baseline --root . --out .skillcheck-baseline.json
-node skillcheck.mjs pr --root . --base-ref origin/main
-node skillcheck.mjs github --url https://github.com/owner/repo
+skillcheck scan --root ./my-skill --config skillcheck.config.json
+skillcheck scan --zip ./my-skill.zip
+skillcheck github --url https://github.com/owner/repository
+skillcheck baseline --root ./my-skill
+skillcheck compare --base base.json --head head.json
+skillcheck gate --root ./my-skill --report .skillcheck/report.json --evidence evidence.json
 ```
+
+For repository development, the same CLI is available at `node packages/cli/src/index.js`.
 
 ## GitHub Action
 
 ```yaml
 - uses: actions/checkout@v4
-  with:
-    fetch-depth: 0
 - uses: sixscripts-ai/SkillCheck@main
   with:
-    path: .
+    path: ./skills/my-skill
     config: skillcheck.config.json
-    baseline: .skillcheck-baseline.json
-    mode: auto
+    mode: scan
 ```
+
+## Browser and repository adapters
+
+The browser uses the same SDK and can scan pasted Markdown, selected files, folders, ZIP archives, or a public GitHub repository URL. Local files remain in the browser. GitHub scanning uses the public GitHub API and supports an optional token in SDK and CLI integrations.
+
+## Marketplace integration boundary
+
+Agent Skill Marketplace should convert the current Builder draft into package files, call `scanPackage`, store the report and fingerprint, attach evaluation and sandbox evidence, and call `evaluateReleaseGate` immediately before public publishing. Scanner rules do not belong in Marketplace.
 
 ## Security boundary
 
-SkillCheck performs static analysis. It does not execute inspected packages, prove runtime behavior, replace sandboxing, or eliminate human review.
+SkillCheck performs static analysis. It does not execute inspected packages, prove runtime behavior, guarantee that code is safe, or replace sandboxing and human review.
 
-## Validation
+## Development
 
-The verified release passed 19 Node release-gate tests covering browser/CLI parity, package scanning, malformed frontmatter, negated instructions, duplicate grouping, scoped baselines, pull-request deltas, exports, ZIP traversal, ZIP size limits, and static deployment output.
+```bash
+npm ci --ignore-scripts
+npm test
+npm run build:web
+npm run check
+npm run test:package
+npm run release:verify
+```
+
+`npm run test:package` packs SkillCheck, installs it into a clean temporary consumer project, imports the public SDK, and runs the installed CLI. The release workflow is documented in [RELEASE.md](./RELEASE.md).
+
+Node.js 20 or newer. MIT licensed.

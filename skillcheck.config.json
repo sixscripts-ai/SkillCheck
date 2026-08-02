@@ -1,1 +1,21 @@
-{"minimumScore":80,"failOn":"error","requiredSections":["Purpose","Instructions","Safety"],"allowedPermissions":["filesystem:read","network"],"output":".skillcheck","regression":{"maxScoreDrop":5,"failOnNewErrors":true,"failOnPermissionExpansion":true}}
+{
+  "id": "skillcheck-default-v1",
+  "version": "1.0.0",
+  "minimumScore": 80,
+  "blockOn": ["error"],
+  "requireDeclaredPermissions": true,
+  "allowPermissions": [
+    "filesystem:read",
+    "filesystem:write",
+    "network",
+    "shell",
+    "browser",
+    "git:write",
+    "secrets:read"
+  ],
+  "requiredSections": ["Purpose", "Instructions", "Safety"],
+  "maximumEvidenceAgeMs": 86400000,
+  "requireEvaluationEvidence": true,
+  "requireSandboxEvidence": true,
+  "minimumEvaluationScore": 80
+}

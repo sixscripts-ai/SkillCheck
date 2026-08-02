@@ -1,0 +1,56 @@
+export type Severity = "info" | "warning" | "error";
+export type ReportStatus = "pass" | "review" | "block";
+export type CanonicalPermission = "filesystem:read" | "filesystem:write" | "network" | "shell" | "browser" | "git:write" | "secrets:read";
+export type PackageFile = { path: string; content?: string; size?: number; kind?: string; symlinkTarget?: string | null };
+export type SkillCheckPolicy = {
+  id?: string; version?: string; minimumScore?: number; blockOn?: Severity[];
+  requireDeclaredPermissions?: boolean; allowPermissions?: string[]; requiredSections?: string[];
+  maximumEvidenceAgeMs?: number; requireEvaluationEvidence?: boolean; requireSandboxEvidence?: boolean;
+  minimumEvaluationScore?: number;
+};
+export type FindingOccurrence = { file: string; line: number; evidence: string };
+export type Finding = {
+  id: string; severity: Severity; permission: CanonicalPermission | null; title: string; remediation: string;
+  declared: boolean | null; occurrences: FindingOccurrence[];
+};
+export type SkillCheckReport = {
+  schemaVersion: "1"; scannerVersion: string; policyVersion: string; policyFingerprint: string;
+  fingerprint: string; generatedAt: string; subject: Record<string, unknown>; score: number; status: ReportStatus;
+  declaredPermissions: CanonicalPermission[]; inferredPermissions: CanonicalPermission[]; findings: Finding[];
+  packageRisks: Finding[]; remediation: string[]; gate: { publishable: boolean; reasons: string[] };
+};
+export type EvaluationEvidence = { suite?: string; score: number; passed?: number; failed?: number; completedAt?: string; reference?: string };
+export type SandboxEvidence = { id: string; status: "pass" | "fail"; completedAt?: string; provider?: string };
+export type ReleaseEvidence = {
+  schemaVersion: "1"; scannerVersion: string; createdAt: string; expiresAt: string | null; fingerprint: string;
+  policyFingerprint: string; report: { score: number; status: ReportStatus; findingCount: number; blockingCount: number };
+  evaluations: Required<Omit<EvaluationEvidence, "reference"> & { reference: string | null }>[];
+  sandbox: { id: string; status: "pass" | "fail"; completedAt: string; provider: string | null } | null;
+  source: unknown; integrity: string;
+};
+export const SCANNER_VERSION: string;
+export const REPORT_SCHEMA_VERSION: "1";
+export const EVIDENCE_SCHEMA_VERSION: "1";
+export const CANONICAL_PERMISSIONS: readonly CanonicalPermission[];
+export const DEFAULT_POLICY: Readonly<Required<SkillCheckPolicy>>;
+export function normalizePermission(value: unknown): CanonicalPermission | null;
+export function normalizePermissions(values?: unknown[]): CanonicalPermission[];
+export function marketplacePermission(value: CanonicalPermission): string;
+export function normalizePackageFiles(files?: PackageFile[]): Required<PackageFile>[];
+export function fingerprintPackage(files: PackageFile[]): string;
+export function normalizePolicy(policy?: SkillCheckPolicy): Required<SkillCheckPolicy>;
+export function fingerprintPolicy(policy?: SkillCheckPolicy): string;
+export function scanPackage(input: { files: PackageFile[]; policy?: SkillCheckPolicy; context?: Record<string, unknown>; generatedAt?: string }): SkillCheckReport;
+export function scanSkillMarkdown(markdown: string, options?: { path?: string; policy?: SkillCheckPolicy; context?: Record<string, unknown>; generatedAt?: string }): SkillCheckReport;
+export function createReleaseEvidence(input: { report: SkillCheckReport; evaluations?: EvaluationEvidence[]; sandbox?: SandboxEvidence; createdAt?: string; expiresAt?: string; source?: unknown }): ReleaseEvidence;
+export function evaluateReleaseGate(input: { report: SkillCheckReport; evidence?: ReleaseEvidence | null; policy?: SkillCheckPolicy; currentFingerprint: string; expectedPolicyFingerprint?: string; now?: string }): { decision: "allow" | "block"; publishable: boolean; checkedAt: string; fingerprint: string; reasons: string[] };
+export function compareReports(base: SkillCheckReport, head: SkillCheckReport): { schemaVersion: "1"; baseFingerprint: string; headFingerprint: string; scoreDelta: number; newFindings: Finding[]; resolvedFindings: Finding[]; addedPermissions: CanonicalPermission[]; removedPermissions: CanonicalPermission[]; recommendation: "approve" | "review" | "block" };
+export function filesFromZip(input: ArrayBuffer | Uint8Array, options?: { maxEntries?: number; maxTotalBytes?: number; maxFileBytes?: number; maxCompressionRatio?: number }): Promise<Required<PackageFile>[]>;
+export function assertReport(report: SkillCheckReport): SkillCheckReport;
+export function assertEvidence(evidence: ReleaseEvidence): ReleaseEvidence;
+export function sha256(value: unknown): string;
+export function stableStringify(value: unknown): string;
+export function parseFrontmatter(markdown: string): { data: Record<string, unknown>; body: string; errors: string[] };
+export function parseGitHubRepositoryUrl(value: string): { owner: string; repo: string; ref: string | null; packagePath: string };
+export function filesFromGitHub(url: string, options?: { token?: string; fetch?: typeof fetch; maxEntries?: number; maxTotalBytes?: number; maxFileBytes?: number; concurrency?: number }): Promise<Required<PackageFile>[]>;
+export function scanGitHubRepository(url: string, options?: { token?: string; fetch?: typeof fetch; policy?: SkillCheckPolicy; generatedAt?: string; maxEntries?: number; maxTotalBytes?: number; maxFileBytes?: number; concurrency?: number }): Promise<SkillCheckReport>;
