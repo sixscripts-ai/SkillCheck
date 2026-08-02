@@ -1,5 +1,5 @@
 {
-  "name": "@sixscripts/skillcheck-core",
+  "name": "@sixscripts-ai/skillcheck-core",
   "version": "1.0.0-rc.1",
   "type": "module",
   "exports": "./src/index.js",

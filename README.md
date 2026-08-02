@@ -10,7 +10,7 @@ import {
   fingerprintPackage,
   createReleaseEvidence,
   evaluateReleaseGate,
-} from "@sixscripts/skillcheck";
+} from "@sixscripts-ai/skillcheck";
 
 const files = [
   { path: "SKILL.md", content: skillMarkdown },

@@ -54,7 +54,7 @@ import {
   fingerprintPackage,
   normalizePermissions,
   scanPackage,
-} from "@sixscripts/skillcheck";
+} from "@sixscripts-ai/skillcheck";
 
 const files = [{ path: "SKILL.md", content: ${JSON.stringify(skillMarkdown)} }];
 const report = scanPackage({ files, generatedAt: "2026-01-01T00:00:00.000Z" });

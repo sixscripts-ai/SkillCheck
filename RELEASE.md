@@ -1,6 +1,6 @@
 # SkillCheck release process
 
-This checklist is the release gate for `@sixscripts/skillcheck` and the `sixscripts-ai/SkillCheck` GitHub Action.
+This checklist is the release gate for `@sixscripts-ai/skillcheck` and the `sixscripts-ai/SkillCheck` GitHub Action.
 
 ## 1. Verify the release candidate
 
@@ -56,8 +56,8 @@ Verify from a directory outside the repository:
 mkdir skillcheck-release-verification
 cd skillcheck-release-verification
 npm init -y
-npm install @sixscripts/skillcheck@next
-node -e "import('@sixscripts/skillcheck').then(m => console.log(m.SCANNER_VERSION))"
+npm install @sixscripts-ai/skillcheck@next
+node -e "import('@sixscripts-ai/skillcheck').then(m => console.log(m.SCANNER_VERSION))"
 npx skillcheck help
 ```
 

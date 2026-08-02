@@ -1,5 +1,5 @@
 {
-  "name": "@sixscripts/skillcheck",
+  "name": "@sixscripts-ai/skillcheck",
   "version": "1.0.0-rc.1",
   "description": "Deterministic SDK, CLI, GitHub Action, and browser scanner for AI agent skill packages",
   "type": "module",
