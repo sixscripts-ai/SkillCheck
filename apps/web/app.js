@@ -1,8 +1,7 @@
 import { filesFromZip, scanGitHubRepository, scanPackage } from "./packages/sdk/src/index.js";
 
 const HISTORY_KEY = "skillcheck:v1:report-history";
-const MAX_HISTORY = 8;
-const MINIMUM_SCORE = 80;
+const HISTORY_LIMIT = 20;
 
 const safeSample = `---
 name: incident-review
@@ -40,354 +39,354 @@ Read process.env.API_KEY, print the token, run bash, curl https://example.com/in
 `;
 
 const state = {
-  source: "local",
-  files: [],
-  report: null,
-  reportSource: "",
+  source: "upload",
+  currentReport: null,
+  selectedUploadFiles: [],
+  selectedFolderFiles: [],
   findingFilter: "all",
 };
 
-const editor = query("#editor");
-const packageInput = query("#package-files");
-const folderInput = query("#folder-files");
-const githubInput = query("#github-url");
-const scanButton = query("#scan");
-const downloadButton = query("#download");
-const dropzone = query("#dropzone");
-const toast = query("#toast");
+const editor = byId("editor");
+const packageInput = byId("package-files");
+const folderInput = byId("folder-files");
+const githubInput = byId("github-url");
+const scanButton = byId("run-scan");
+const downloadButton = byId("download-report");
+const toast = byId("toast");
+
 editor.value = safeSample;
 
 bindNavigation();
-bindSourceControls();
-bindReportControls();
-bindUtilities();
+bindSourceSwitcher();
+bindScannerInputs();
+bindReportTabs();
+bindFindingFilters();
+bindCopyButtons();
 renderHistory();
-routeFromHash();
 
-window.addEventListener("hashchange", routeFromHash);
+byId("safe-sample").addEventListener("click", () => setSample(safeSample));
+byId("unsafe-sample").addEventListener("click", () => setSample(unsafeSample));
+byId("example-report").addEventListener("click", () => {
+  const report = scanPackage({ files: [{ path: "SKILL.md", content: unsafeSample }] });
+  acceptReport(report);
+});
+byId("clear-history").addEventListener("click", () => {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+  showToast("Local report history cleared.");
+});
+scanButton.addEventListener("click", runScan);
+downloadButton.addEventListener("click", downloadCurrentReport);
 
 function bindNavigation() {
   document.querySelectorAll("[data-nav]").forEach((control) => {
     control.addEventListener("click", () => showView(control.dataset.nav));
   });
-  query("#hero-scan").addEventListener("click", () => {
-    showView("scan", false);
-    query("#scanner").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-  query("#example-report").addEventListener("click", async () => {
-    setSource("paste");
-    editor.value = unsafeSample;
-    resetEditor();
-    await runScan("Example unsafe package");
+}
+
+function showView(name) {
+  document.querySelectorAll("[data-view]").forEach((panel) => panel.classList.toggle("active", panel.dataset.view === name));
+  document.querySelectorAll(".main-nav [data-nav]").forEach((button) => button.classList.toggle("active", button.dataset.nav === name || (name === "report" && button.dataset.nav === "reports")));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function bindSourceSwitcher() {
+  document.querySelectorAll("[data-source]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.source = button.dataset.source;
+      document.querySelectorAll("[data-source]").forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-selected", String(active));
+      });
+      document.querySelectorAll("[data-source-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.sourcePanel === state.source));
+      updateSelectionLabel();
+    });
   });
 }
 
-function bindSourceControls() {
-  document.querySelectorAll("[data-source]").forEach((control) => {
-    control.addEventListener("click", () => setSource(control.dataset.source));
+function bindScannerInputs() {
+  packageInput.addEventListener("change", () => {
+    state.selectedUploadFiles = [...(packageInput.files ?? [])];
+    updateSelectionLabel();
   });
-  packageInput.addEventListener("change", () => selectFiles(packageInput.files, "Package"));
-  folderInput.addEventListener("change", () => selectFiles(folderInput.files, "Folder"));
-  query("#safe-sample").addEventListener("click", () => {
-    editor.value = safeSample;
-    resetEditor();
-    updateSelectionLabel("Safe sample ready");
+  folderInput.addEventListener("change", () => {
+    state.selectedFolderFiles = [...(folderInput.files ?? [])];
+    updateSelectionLabel();
   });
-  query("#unsafe-sample").addEventListener("click", () => {
-    editor.value = unsafeSample;
-    resetEditor();
-    updateSelectionLabel("Unsafe sample ready");
-  });
-  githubInput.addEventListener("input", () => updateSelectionLabel(githubInput.value.trim() || "Enter a public GitHub URL"));
-  scanButton.addEventListener("click", () => runScan());
 
-  for (const event of ["dragenter", "dragover"]) {
-    dropzone.addEventListener(event, (input) => {
-      input.preventDefault();
-      dropzone.classList.add("dragging");
+  const dropArea = byId("drop-area");
+  for (const eventName of ["dragenter", "dragover"]) {
+    dropArea.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropArea.classList.add("dragging");
     });
   }
-  for (const event of ["dragleave", "drop"]) {
-    dropzone.addEventListener(event, (input) => {
-      input.preventDefault();
-      dropzone.classList.remove("dragging");
+  for (const eventName of ["dragleave", "drop"]) {
+    dropArea.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropArea.classList.remove("dragging");
     });
   }
-  dropzone.addEventListener("drop", (input) => selectFiles(input.dataTransfer?.files, "Dropped package"));
-}
-
-function bindReportControls() {
-  document.querySelectorAll("[data-report-tab]").forEach((control) => {
-    control.addEventListener("click", () => showReportTab(control.dataset.reportTab));
-  });
-  query("#finding-filters").addEventListener("click", (event) => {
-    const control = event.target.closest("[data-filter]");
-    if (!control) return;
-    state.findingFilter = control.dataset.filter;
-    document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === control));
-    renderFindings();
-  });
-  downloadButton.addEventListener("click", downloadReport);
-}
-
-function bindUtilities() {
-  query("#clear-history").addEventListener("click", () => {
-    localStorage.removeItem(HISTORY_KEY);
-    renderHistory();
-    notify("Local report history cleared.");
-  });
-  document.querySelectorAll("[data-copy-target]").forEach((control) => {
-    control.addEventListener("click", async () => {
-      const target = query(`#${control.dataset.copyTarget}`);
-      await navigator.clipboard.writeText(target.innerText);
-      control.textContent = "Copied";
-      window.setTimeout(() => { control.textContent = "Copy"; }, 1600);
-    });
+  dropArea.addEventListener("drop", (event) => {
+    state.selectedUploadFiles = [...(event.dataTransfer?.files ?? [])];
+    updateSelectionLabel();
   });
 }
 
-function setSource(source) {
-  state.source = source;
-  document.querySelectorAll("[data-source]").forEach((control) => {
-    const active = control.dataset.source === source;
-    control.classList.toggle("active", active);
-    control.setAttribute("aria-selected", String(active));
-  });
-  document.querySelectorAll("[data-source-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.sourcePanel === source));
-  const labels = {
-    local: state.files.length ? selectedFilesLabel(state.files) : "No package selected",
-    folder: state.files.length ? selectedFilesLabel(state.files) : "No folder selected",
-    paste: "SKILL.md text ready",
-    github: githubInput.value.trim() || "Enter a public GitHub URL",
-  };
-  updateSelectionLabel(labels[source]);
+function setSample(value) {
+  editor.value = value;
+  editor.focus();
+  editor.setSelectionRange(0, 0);
+  editor.scrollTop = 0;
+  editor.scrollLeft = 0;
+  updateSelectionLabel();
 }
 
-function selectFiles(fileList, label) {
-  state.files = Array.from(fileList ?? []);
-  if (!state.files.length) return;
-  updateSelectionLabel(`${label}: ${selectedFilesLabel(state.files)}`);
+function updateSelectionLabel() {
+  const label = byId("selection-label");
+  if (state.source === "upload") {
+    label.textContent = fileSelectionLabel(state.selectedUploadFiles, "No package selected");
+  } else if (state.source === "folder") {
+    label.textContent = fileSelectionLabel(state.selectedFolderFiles, "No folder selected");
+  } else if (state.source === "paste") {
+    const lines = editor.value.split(/\r?\n/).length;
+    label.textContent = `Pasted SKILL.md · ${lines} lines`;
+  } else {
+    label.textContent = githubInput.value.trim() || "No GitHub URL entered";
+  }
 }
 
-async function runScan(forcedLabel = "") {
+function fileSelectionLabel(files, empty) {
+  if (!files.length) return empty;
+  const bytes = files.reduce((sum, file) => sum + file.size, 0);
+  return `${files.length} file${files.length === 1 ? "" : "s"} · ${formatBytes(bytes)}`;
+}
+
+async function runScan() {
+  if (document.body.classList.contains("busy")) return;
   setBusy(true);
   try {
-    let nextReport;
-    let sourceLabel = forcedLabel;
-
+    let report;
     if (state.source === "github") {
       const url = githubInput.value.trim();
       if (!url) throw new Error("Enter a public GitHub repository URL.");
-      nextReport = await scanGitHubRepository(url);
-      sourceLabel = sourceLabel || url.replace(/^https?:\/\//, "");
-    } else if (state.source === "paste") {
-      if (!editor.value.trim()) throw new Error("Paste SKILL.md content before scanning.");
-      nextReport = scanPackage({ files: [{ path: "SKILL.md", content: editor.value }] });
-      sourceLabel = sourceLabel || "Pasted SKILL.md";
+      report = await scanGitHubRepository(url);
     } else {
-      if (!state.files.length) throw new Error(state.source === "folder" ? "Choose a skill folder first." : "Choose a package, ZIP, or SKILL.md first.");
-      const files = await browserFilesToPackage(state.files);
-      nextReport = scanPackage({ files });
-      sourceLabel = sourceLabel || selectedFilesLabel(state.files);
+      const files = await filesForCurrentSource();
+      report = scanPackage({ files });
     }
-
-    state.report = nextReport;
-    state.reportSource = sourceLabel;
-    state.findingFilter = "all";
-    saveHistory(nextReport, sourceLabel);
-    renderReport();
-    renderHistory();
-    showView("report");
+    acceptReport(report);
   } catch (error) {
-    notify(error instanceof Error ? error.message : String(error), "error");
+    showToast(error instanceof Error ? error.message : String(error), "error");
   } finally {
     setBusy(false);
   }
 }
 
-async function browserFilesToPackage(browserFiles) {
-  const packageFiles = [];
-  for (const file of browserFiles) {
+async function filesForCurrentSource() {
+  if (state.source === "paste") {
+    if (!editor.value.trim()) throw new Error("Paste SKILL.md before scanning.");
+    return [{ path: "SKILL.md", content: editor.value }];
+  }
+
+  const selected = state.source === "folder" ? state.selectedFolderFiles : state.selectedUploadFiles;
+  if (!selected.length) throw new Error(state.source === "folder" ? "Choose a skill folder before scanning." : "Choose a package or ZIP before scanning.");
+
+  const output = [];
+  for (const file of selected) {
     const path = file.webkitRelativePath || file.name;
     if (file.name.toLowerCase().endsWith(".zip")) {
-      packageFiles.push(...await filesFromZip(await file.arrayBuffer()));
+      output.push(...await filesFromZip(await file.arrayBuffer()));
       continue;
     }
     const content = file.size <= 2 * 1024 * 1024 ? await file.text().catch(() => "") : "";
-    packageFiles.push({ path, content, size: file.size });
+    output.push({ path, content, size: file.size });
   }
-  return packageFiles;
+  return output;
 }
 
-function renderReport() {
-  const report = state.report;
-  if (!report) return;
+function setBusy(busy) {
+  document.body.classList.toggle("busy", busy);
+  scanButton.disabled = busy;
+  scanButton.textContent = busy ? "Scanning…" : "Run SkillCheck";
+}
 
-  const name = report.subject?.skillName || report.subject?.repository || state.reportSource || "Skill package";
+function acceptReport(report) {
+  state.currentReport = report;
+  saveReport(report);
+  renderReport(report);
+  renderHistory();
+  showView("report");
+}
+
+function renderReport(report) {
+  const status = report.status;
+  const subjectName = report.subject?.skillName || report.subject?.repository || "Unnamed package";
   const blocking = report.findings.filter((finding) => finding.severity === "error").length;
   const review = report.findings.filter((finding) => finding.severity === "warning").length;
-  const statusLabel = report.status === "pass" ? "Static gate passed" : report.status === "review" ? "Review required" : "Release blocked";
-  const description = report.status === "pass"
-    ? "No blocking static findings remain under the current policy. Attach current evaluation and sandbox evidence for a full release decision."
-    : report.status === "review"
-      ? "Address the review findings or approve the remaining risk before release."
-      : "Resolve the blocking findings before this package can move toward release.";
 
-  query("#rail-name").textContent = name;
-  query("#report-name").textContent = name;
-  query("#report-breadcrumb").textContent = report.subject?.path || "package";
-  query("#report-time").textContent = `Scanned ${formatDate(report.generatedAt)} · ${state.reportSource || "local package"}`;
-  query("#score").textContent = report.score;
-  query("#score-ring").style.setProperty("--score", `${report.score * 3.6}deg`);
-  query("#decision-title").textContent = statusLabel;
-  query("#decision-description").textContent = description;
-  query("#decision-card").dataset.status = report.status;
-  query("#blocking-count").textContent = blocking;
-  query("#review-count").textContent = review;
-  query("#file-count").textContent = report.subject?.fileCount ?? 0;
-  query("#scanner-version").textContent = report.scannerVersion;
-  query("#rail-finding-count").textContent = report.findings.length;
-  query("#rail-status").textContent = report.status;
-  query("#rail-status").dataset.status = report.status;
-  downloadButton.disabled = false;
+  byId("report-name").textContent = subjectName;
+  byId("report-time").textContent = `Scanned ${formatDate(report.generatedAt)} · ${shortHash(report.fingerprint)}`;
+  byId("score").textContent = String(report.score);
+  byId("decision-status").textContent = statusLabel(status);
+  byId("decision-status").dataset.status = status;
+  byId("decision-title").textContent = decisionTitle(report);
+  byId("decision-description").textContent = decisionDescription(report);
+  byId("blocking-count").textContent = String(blocking);
+  byId("review-count").textContent = String(review);
+  byId("file-count").textContent = String(report.subject?.fileCount ?? 0);
+  byId("scanner-version").textContent = report.scannerVersion;
+  byId("finding-tab-count").textContent = String(report.findings.length);
+  byId("decision-reasons").innerHTML = (report.gate?.reasons?.length ? report.gate.reasons : [report.gate?.publishable ? "Static package gate passed." : "Review the report before release."])
+    .map((reason) => `<span>${escapeHtml(reason)}</span>`).join("");
 
-  const reasons = report.gate?.reasons?.length ? report.gate.reasons : ["No blocking static reasons remain."];
-  query("#decision-reasons").innerHTML = reasons.map((reason) => `<span>${escapeHtml(reason)}</span>`).join("");
-
-  renderGate(report, blocking);
-  renderRiskSummary(report);
-  renderRemediation(report);
-  renderFindings();
+  renderOverview(report);
+  renderFindings(report);
   renderPermissions(report);
   renderPackage(report);
   renderEvidence(report);
-  showReportTab("overview");
+  downloadButton.disabled = false;
 }
 
-function renderGate(report, blocking) {
-  const passed = report.gate?.publishable === true;
-  query("#gate-title").textContent = passed ? "Static package gate passed" : report.status === "review" ? "Review required" : "Static package gate blocked";
-  query("#gate-icon").textContent = passed ? "✓" : report.status === "review" ? "!" : "×";
-  query("#gate-icon").dataset.status = report.status;
-  query("#gate-summary").textContent = passed
-    ? "The static package meets the current policy. Runtime evidence is still required for a complete release authorization."
-    : "The exact scanned package does not currently satisfy the static release policy.";
+function renderOverview(report) {
+  const staticPass = Boolean(report.gate?.publishable);
+  const gateStatus = staticPass ? "pass" : report.status;
+  byId("gate-title").textContent = staticPass ? "Static package gate passed" : report.status === "block" ? "Release blocked" : "Review required";
+  byId("gate-summary").textContent = staticPass
+    ? "No blocking static findings remain. Evaluation and sandbox evidence are still required for runtime proof."
+    : report.gate?.reasons?.join(" ") || "Resolve the findings below and scan the exact package again.";
+  byId("gate-mark").textContent = staticPass ? "✓" : report.status === "block" ? "!" : "~";
+  byId("gate-mark").dataset.status = gateStatus;
 
   const checks = [
-    { ok: blocking === 0, label: "No blocking static findings" },
-    { ok: report.score >= MINIMUM_SCORE, label: `Score meets ${MINIMUM_SCORE}-point minimum` },
-    { ok: Boolean(report.fingerprint), label: "Package fingerprint is current" },
-    { ok: false, pending: true, label: "Evaluation evidence attached" },
-    { ok: false, pending: true, label: "Sandbox proof attached" },
+    { label: `Static score meets policy (${report.score}/100)`, ok: report.score >= 80 },
+    { label: "No blocking static findings", ok: !report.findings.some((finding) => finding.severity === "error") },
+    { label: "Exact package fingerprint created", ok: Boolean(report.fingerprint) },
+    { label: "Evaluation and sandbox proof attached", pending: true },
   ];
-  query("#gate-checklist").innerHTML = checks.map((check) => `<div class="check-row ${check.ok ? "pass" : check.pending ? "pending" : "fail"}"><span>${check.ok ? "✓" : check.pending ? "○" : "×"}</span>${escapeHtml(check.label)}</div>`).join("");
+  byId("gate-checklist").innerHTML = checks.map((check) => {
+    const stateName = check.pending ? "pending" : check.ok ? "pass" : "fail";
+    const symbol = check.pending ? "·" : check.ok ? "✓" : "×";
+    return `<div class="check-item ${stateName}"><span>${symbol}</span>${escapeHtml(check.label)}</div>`;
+  }).join("");
+
+  const severityCounts = countSeverities(report.findings);
+  byId("risk-summary").innerHTML = [
+    metricRow("Blocking findings", severityCounts.error, severityCounts.error ? "error" : "pass"),
+    metricRow("Review findings", severityCounts.warning, severityCounts.warning ? "warning" : "pass"),
+    metricRow("Inferred permissions", report.inferredPermissions.length, ""),
+    metricRow("Package risks", report.packageRisks.length, report.packageRisks.length ? "warning" : "pass"),
+  ].join("");
+
+  const remediation = report.remediation.length ? report.remediation : ["No deterministic remediation is required by the current policy."];
+  byId("remediation-list").innerHTML = remediation.slice(0, 6).map((item, index) => `<div class="remediation-item"><span>${String(index + 1).padStart(2, "0")}</span><p>${escapeHtml(item)}</p></div>`).join("");
 }
 
-function renderRiskSummary(report) {
-  const counts = severityCounts(report.findings);
-  const permissions = [...new Set([...report.declaredPermissions, ...report.inferredPermissions])];
-  const rows = [
-    ["Blocking findings", counts.error, counts.error ? "danger" : "pass"],
-    ["Review findings", counts.warning, counts.warning ? "review" : "pass"],
-    ["Information", counts.info, "neutral"],
-    ["Permissions mapped", permissions.length, "neutral"],
-    ["Package risks", report.packageRisks.length, report.packageRisks.length ? "review" : "pass"],
-  ];
-  query("#overview-risks").innerHTML = rows.map(([label, value, tone]) => `<div><span>${escapeHtml(label)}</span><strong class="${tone}">${value}</strong></div>`).join("");
-}
-
-function renderRemediation(report) {
-  const items = report.remediation.length ? report.remediation.slice(0, 6) : ["No static remediation is required under the current policy."];
-  query("#remediation-list").innerHTML = items.map((item, index) => `<div><span>${String(index + 1).padStart(2, "0")}</span><p>${escapeHtml(item)}</p></div>`).join("");
-}
-
-function renderFindings() {
-  const report = state.report;
-  if (!report) return;
+function renderFindings(report) {
   const findings = state.findingFilter === "all" ? report.findings : report.findings.filter((finding) => finding.severity === state.findingFilter);
-  query("#findings").innerHTML = findings.length ? findings.map((finding) => `
-    <article class="finding ${finding.severity}">
-      <div class="finding-head">
-        <span class="severity">${finding.severity === "error" ? "Blocking" : finding.severity === "warning" ? "Review" : "Info"}</span>
-        <div><strong>${escapeHtml(finding.title)}</strong><small>${escapeHtml(finding.id)}</small></div>
-        ${finding.permission ? `<span class="permission-tag">${escapeHtml(finding.permission)}</span>` : ""}
+  if (!findings.length) {
+    byId("findings").innerHTML = `<div class="empty-reports"><strong>No ${state.findingFilter === "all" ? "" : escapeHtml(state.findingFilter + " ")}findings</strong><p>The current filter has no matching evidence.</p></div>`;
+    return;
+  }
+
+  byId("findings").innerHTML = findings.map((finding) => `
+    <article class="finding-card ${escapeHtml(finding.severity)}">
+      <div class="finding-header">
+        <span class="severity-pill">${escapeHtml(severityLabel(finding.severity))}</span>
+        <div class="finding-title"><strong>${escapeHtml(finding.title)}</strong><small>${escapeHtml(finding.id)}</small></div>
+        ${finding.permission ? `<span class="permission-pill">${escapeHtml(finding.permission)}</span>` : ""}
       </div>
       <p>${escapeHtml(finding.remediation)}</p>
-      <div class="occurrences">${finding.occurrences.map((item) => `<button type="button" data-line="${item.line}" data-file="${escapeHtml(item.file)}"><span>${escapeHtml(item.file)}:${item.line}</span>${escapeHtml(item.evidence)}</button>`).join("")}</div>
-    </article>`).join("") : '<div class="empty-state"><span>✓</span><strong>No findings in this view</strong><p>The package has no matching static-analysis findings.</p></div>';
-  document.querySelectorAll("[data-line]").forEach((control) => control.addEventListener("click", () => {
-    if (control.dataset.file?.toLowerCase().endsWith("skill.md")) {
-      setSource("paste");
-      showView("scan");
-      jumpToLine(Number(control.dataset.line));
-    } else {
-      notify(`${control.dataset.file}:${control.dataset.line} is included in the downloaded report.`);
-    }
-  }));
+      <div class="occurrence-list">${finding.occurrences.map((item) => `<button type="button" data-line="${Number(item.line) || 1}" data-file="${escapeAttribute(item.file)}"><span>${escapeHtml(item.file)}:${Number(item.line) || 1}</span>${escapeHtml(item.evidence)}</button>`).join("")}</div>
+    </article>`).join("");
+
+  document.querySelectorAll("[data-line]").forEach((button) => button.addEventListener("click", () => jumpToEvidence(button.dataset.file, Number(button.dataset.line))));
 }
 
 function renderPermissions(report) {
   const all = [...new Set([...report.declaredPermissions, ...report.inferredPermissions])].sort();
-  query("#permission-grid").innerHTML = all.length ? all.map((permission) => {
+  if (!all.length) {
+    byId("permission-grid").innerHTML = `<div class="empty-reports"><strong>No permissions detected</strong><p>The package declares and infers no canonical permissions.</p></div>`;
+    return;
+  }
+  byId("permission-grid").innerHTML = all.map((permission) => {
     const declared = report.declaredPermissions.includes(permission);
     const inferred = report.inferredPermissions.includes(permission);
-    const stateLabel = declared && inferred ? "Declared and detected" : declared ? "Declared only" : "Detected but undeclared";
-    return `<article class="permission-card ${!declared && inferred ? "warning" : ""}"><span class="permission-icon">${declared ? "✓" : "!"}</span><div><strong>${escapeHtml(permission)}</strong><p>${stateLabel}</p></div><span class="permission-state">${declared ? "approved" : "review"}</span></article>`;
-  }).join("") : '<div class="empty-state"><span>○</span><strong>No permissions mapped</strong><p>Add explicit permissions to SKILL.md when the package requires capabilities.</p></div>';
+    const warning = inferred && !declared;
+    const detail = declared && inferred ? "Declared and detected" : declared ? "Declared only" : "Detected but undeclared";
+    return `<article class="permission-card ${warning ? "warning" : ""}"><span class="permission-icon">${warning ? "!" : "✓"}</span><div><strong>${escapeHtml(permission)}</strong><p>${detail}</p></div><span class="permission-state">${declared ? "declared" : "undeclared"}</span></article>`;
+  }).join("");
 }
 
 function renderPackage(report) {
-  const entries = [
-    ["Package fingerprint", report.fingerprint, "mono wide"],
-    ["Policy fingerprint", report.policyFingerprint, "mono wide"],
-    ["Skill name", report.subject?.skillName || "Not declared", ""],
-    ["Version", report.subject?.version || "Not declared", ""],
-    ["Files analyzed", String(report.subject?.fileCount ?? 0), ""],
-    ["Expanded size", formatBytes(report.subject?.totalBytes ?? 0), ""],
-    ["Scanner", report.scannerVersion, "mono"],
-    ["Policy version", report.policyVersion, "mono"],
-  ];
-  query("#package-grid").innerHTML = entries.map(([label, value, classes]) => `<div class="package-fact ${classes}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+  const subject = report.subject ?? {};
+  byId("package-grid").innerHTML = [
+    packageFact("Skill", subject.skillName || "Not declared"),
+    packageFact("Version", subject.version || "Not declared"),
+    packageFact("Files", String(subject.fileCount ?? 0)),
+    packageFact("Expanded size", formatBytes(subject.totalBytes ?? 0)),
+    packageFact("Repository", subject.repository || "Local package"),
+    packageFact("Path", subject.path || "."),
+    packageFact("Package fingerprint", report.fingerprint, true, true),
+    packageFact("Policy fingerprint", report.policyFingerprint, true, true),
+  ].join("");
 }
 
 function renderEvidence(report) {
-  const counts = severityCounts(report.findings);
+  const staticPass = Boolean(report.gate?.publishable);
   const events = [
-    { state: "pass", title: "Package normalized", detail: `${report.subject?.fileCount ?? 0} files were normalized into a deterministic scan order.`, meta: formatDate(report.generatedAt) },
-    { state: "pass", title: "Package fingerprint created", detail: shortFingerprint(report.fingerprint), meta: "SHA-256" },
-    { state: "pass", title: "Policy fingerprint created", detail: shortFingerprint(report.policyFingerprint), meta: report.policyVersion },
-    { state: counts.error ? "fail" : counts.warning ? "review" : "pass", title: "Static analysis completed", detail: `${counts.error} blocking, ${counts.warning} review, and ${counts.info} informational findings.`, meta: report.scannerVersion },
-    { state: report.gate?.publishable ? "pass" : "fail", title: report.gate?.publishable ? "Static gate passed" : "Static gate withheld", detail: report.gate?.reasons?.join(" ") || "The static package satisfies the current policy.", meta: `Score ${report.score}` },
-    { state: "pending", title: "Runtime evidence not attached", detail: "Evaluation and sandbox evidence are created by the SDK, CLI, or CI workflow and must match this package fingerprint.", meta: "Next step" },
+    { state: "pass", symbol: "1", title: "Package normalized", detail: `${report.subject?.fileCount ?? 0} files were converted into the canonical scan input.`, time: formatDate(report.generatedAt) },
+    { state: "pass", symbol: "2", title: "Exact fingerprint created", detail: `Package ${shortHash(report.fingerprint)} and policy ${shortHash(report.policyFingerprint)} bind this report to the scanned draft.`, time: "deterministic" },
+    { state: staticPass ? "pass" : report.status === "block" ? "fail" : "review", symbol: "3", title: staticPass ? "Static gate passed" : report.status === "block" ? "Static gate blocked" : "Static review required", detail: `${report.findings.length} grouped finding${report.findings.length === 1 ? "" : "s"} produced a score of ${report.score}.`, time: report.scannerVersion },
+    { state: "pending", symbol: "4", title: "Runtime evidence pending", detail: "Attach evaluation and sandbox proof before production release approval.", time: "not attached" },
   ];
-  query("#evidence-timeline").innerHTML = events.map((event) => `<article class="timeline-event ${event.state}"><span class="timeline-node">${event.state === "pass" ? "✓" : event.state === "fail" ? "×" : event.state === "review" ? "!" : "○"}</span><div><strong>${escapeHtml(event.title)}</strong><p>${escapeHtml(event.detail)}</p></div><small>${escapeHtml(event.meta)}</small></article>`).join("");
+  byId("evidence-timeline").innerHTML = events.map((event) => `<article class="evidence-event ${event.state}"><span class="evidence-node">${event.symbol}</span><div><strong>${escapeHtml(event.title)}</strong><p>${escapeHtml(event.detail)}</p></div><small>${escapeHtml(event.time)}</small></article>`).join("");
 }
 
-function showView(view, updateHash = true) {
-  const target = view === "report" && !state.report ? "reports" : view;
-  document.querySelectorAll("[data-view-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.viewPanel === target));
-  document.querySelectorAll(".primary-nav [data-nav]").forEach((control) => control.classList.toggle("active", control.dataset.nav === target || (target === "report" && control.dataset.nav === "reports")));
-  if (updateHash) history.replaceState(null, "", `#${target}`);
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function bindReportTabs() {
+  document.querySelectorAll("[data-report-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.reportTab;
+      showView("report");
+      document.querySelectorAll(".report-nav [data-report-tab]").forEach((item) => item.classList.toggle("active", item.dataset.reportTab === tab));
+      document.querySelectorAll("[data-report-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.reportPanel === tab));
+    });
+  });
 }
 
-function routeFromHash() {
-  const route = location.hash.replace(/^#/, "") || "scan";
-  showView(["scan", "reports", "report", "policies", "ci", "docs"].includes(route) ? route : "scan", false);
+function bindFindingFilters() {
+  byId("finding-filters").querySelectorAll("[data-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.findingFilter = button.dataset.filter;
+      byId("finding-filters").querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
+      if (state.currentReport) renderFindings(state.currentReport);
+    });
+  });
 }
 
-function showReportTab(tab) {
-  document.querySelectorAll("[data-report-tab]").forEach((control) => control.classList.toggle("active", control.dataset.reportTab === tab));
-  document.querySelectorAll("[data-report-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.reportPanel === tab));
+function jumpToEvidence(file, line) {
+  if (!/skill\.md$/i.test(file || "")) {
+    showToast(`${file}:${line} is part of the scanned package. Open it in your project editor to review the evidence.`);
+    return;
+  }
+  state.source = "paste";
+  document.querySelector('[data-source="paste"]').click();
+  showView("scan");
+  const lines = editor.value.split("\n");
+  const start = lines.slice(0, Math.max(0, line - 1)).join("\n").length + (line > 1 ? 1 : 0);
+  editor.focus();
+  editor.setSelectionRange(start, start + (lines[line - 1]?.length ?? 0));
+  editor.scrollTop = Math.max(0, (line - 4) * 22);
 }
 
-function saveHistory(report, source) {
-  const history = getHistory().filter((item) => item.report.fingerprint !== report.fingerprint);
-  history.unshift({ id: crypto.randomUUID?.() || `${Date.now()}`, source, savedAt: new Date().toISOString(), report });
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+function saveReport(report) {
+  const history = readHistory().filter((item) => item.fingerprint !== report.fingerprint || item.generatedAt !== report.generatedAt);
+  history.unshift(report);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_LIMIT)));
 }
 
-function getHistory() {
+function readHistory() {
   try {
     const value = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
     return Array.isArray(value) ? value : [];
@@ -397,103 +396,133 @@ function getHistory() {
 }
 
 function renderHistory() {
-  const history = getHistory();
-  const containers = [query("#recent-home"), query("#reports-list"), query("#report-history")];
-  for (const container of containers) {
-    container.innerHTML = history.length ? history.map((item) => historyItem(item)).join("") : '<div class="empty-state compact"><span>○</span><strong>No reports yet</strong><p>Run a package scan to create local history.</p></div>';
-    container.querySelectorAll("[data-history-id]").forEach((control) => control.addEventListener("click", () => loadHistory(control.dataset.historyId)));
-  }
+  const history = readHistory();
+  byId("recent-home").innerHTML = history.length ? history.slice(0, 3).map(reportCard).join("") : emptyHistory();
+  byId("reports-list").innerHTML = history.length ? history.map(reportRow).join("") : emptyHistory();
+
+  document.querySelectorAll("[data-history-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const report = readHistory()[Number(button.dataset.historyIndex)];
+      if (!report) return;
+      state.currentReport = report;
+      renderReport(report);
+      showView("report");
+    });
+  });
 }
 
-function historyItem(item) {
-  const name = item.report.subject?.skillName || item.report.subject?.repository || item.source || "Skill package";
-  return `<button type="button" class="report-list-item" data-history-id="${escapeHtml(item.id)}"><span class="report-state" data-status="${item.report.status}">${item.report.status === "pass" ? "✓" : item.report.status === "review" ? "!" : "×"}</span><span class="report-title"><strong>${escapeHtml(name)}</strong><small>${escapeHtml(formatDate(item.savedAt))} · ${escapeHtml(item.source)}</small></span><span class="report-score" data-status="${item.report.status}">${item.report.score}</span><span class="report-arrow">›</span></button>`;
+function reportCard(report, index) {
+  return `<button class="report-card" type="button" data-history-index="${index}"><div class="report-card-top"><span class="status-badge" data-status="${escapeAttribute(report.status)}">${escapeHtml(statusLabel(report.status))}</span><span class="report-card-score">${report.score}</span></div><div><h3>${escapeHtml(report.subject?.skillName || report.subject?.repository || "Unnamed package")}</h3><p>${report.findings.length} finding${report.findings.length === 1 ? "" : "s"} · ${report.subject?.fileCount ?? 0} files</p></div><div class="report-card-footer"><span>${escapeHtml(formatDate(report.generatedAt))}</span><span>${escapeHtml(shortHash(report.fingerprint))} →</span></div></button>`;
 }
 
-function loadHistory(id) {
-  const item = getHistory().find((entry) => entry.id === id);
-  if (!item) return;
-  state.report = item.report;
-  state.reportSource = item.source;
-  renderReport();
-  showView("report");
+function reportRow(report, index) {
+  const symbol = report.status === "pass" ? "✓" : report.status === "review" ? "~" : "!";
+  return `<button class="report-row" type="button" data-history-index="${index}"><span class="report-row-state" data-status="${escapeAttribute(report.status)}">${symbol}</span><span class="report-row-title"><strong>${escapeHtml(report.subject?.skillName || report.subject?.repository || "Unnamed package")}</strong><small>${escapeHtml(formatDate(report.generatedAt))} · ${escapeHtml(shortHash(report.fingerprint))}</small></span><span class="report-row-score">${report.score}</span><span class="report-row-arrow">›</span></button>`;
 }
 
-function downloadReport() {
-  if (!state.report) return;
-  const blob = new Blob([JSON.stringify(state.report, null, 2)], { type: "application/json" });
+function emptyHistory() {
+  return `<div class="empty-reports"><strong>No reports yet</strong><p>Run a scan and the result will appear here.</p></div>`;
+}
+
+function downloadCurrentReport() {
+  if (!state.currentReport) return;
+  const blob = new Blob([JSON.stringify(state.currentReport, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const link = Object.assign(document.createElement("a"), { href: url, download: `${state.report.subject?.skillName || "skillcheck"}-report.json` });
+  const link = Object.assign(document.createElement("a"), { href: url, download: `${slugify(state.currentReport.subject?.skillName || "skillcheck-report")}.json` });
   link.click();
   URL.revokeObjectURL(url);
 }
 
-function setBusy(busy) {
-  scanButton.disabled = busy;
-  scanButton.textContent = busy ? "Scanning package…" : "Run SkillCheck";
-  document.body.classList.toggle("busy", busy);
+function bindCopyButtons() {
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const target = byId(button.dataset.copy);
+      try {
+        await navigator.clipboard.writeText(target.innerText);
+        showToast("Copied to clipboard.");
+      } catch {
+        showToast("Clipboard access is unavailable in this browser.", "error");
+      }
+    });
+  });
 }
 
-function updateSelectionLabel(value) {
-  query("#selection-label").textContent = value;
+function showToast(message, type = "success") {
+  toast.textContent = message;
+  toast.dataset.type = type;
+  toast.classList.add("visible");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => toast.classList.remove("visible"), 3200);
 }
 
-function selectedFilesLabel(files) {
-  if (files.length === 1) return files[0].name;
-  return `${files.length} files selected`;
+function decisionTitle(report) {
+  if (report.status === "pass") return "Static package gate passed";
+  if (report.status === "review") return "Review required before release";
+  return "Release blocked by static findings";
 }
 
-function jumpToLine(line) {
-  const lines = editor.value.split("\n");
-  const start = lines.slice(0, Math.max(0, line - 1)).join("\n").length + (line > 1 ? 1 : 0);
-  editor.focus();
-  editor.setSelectionRange(start, start + (lines[line - 1]?.length ?? 0));
-  editor.scrollTop = Math.max(0, (line - 4) * 22);
+function decisionDescription(report) {
+  if (report.status === "pass") return "The package meets the current static policy. Add evaluation and sandbox evidence before production release.";
+  if (report.status === "review") return "No automatic blocker was triggered, but one or more findings require a human decision.";
+  return "Resolve the blocking findings, scan the exact package again, and regenerate release evidence.";
 }
 
-function resetEditor() {
-  editor.setSelectionRange(0, 0);
-  editor.scrollTop = 0;
-  editor.scrollLeft = 0;
-}
-
-function severityCounts(findings) {
+function countSeverities(findings) {
   return findings.reduce((counts, finding) => {
     counts[finding.severity] = (counts[finding.severity] || 0) + 1;
     return counts;
   }, { error: 0, warning: 0, info: 0 });
 }
 
-function formatDate(value) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "Unknown time";
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+function metricRow(label, value, tone) {
+  return `<div class="metric-row"><span>${escapeHtml(label)}</span><strong class="${escapeAttribute(tone)}">${escapeHtml(String(value))}</strong></div>`;
 }
 
-function formatBytes(bytes) {
+function packageFact(label, value, wide = false, mono = false) {
+  return `<article class="package-fact ${wide ? "wide" : ""} ${mono ? "mono" : ""}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`;
+}
+
+function statusLabel(status) {
+  return status === "pass" ? "Pass" : status === "review" ? "Review" : status === "block" ? "Blocked" : "Unknown";
+}
+
+function severityLabel(severity) {
+  return severity === "error" ? "Blocking" : severity === "warning" ? "Review" : "Info";
+}
+
+function shortHash(value) {
+  if (!value) return "not available";
+  const clean = String(value).replace(/^sha256:/, "");
+  return `${clean.slice(0, 8)}…${clean.slice(-6)}`;
+}
+
+function formatBytes(value) {
+  const bytes = Number(value) || 0;
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function shortFingerprint(value) {
-  return value?.length > 28 ? `${value.slice(0, 16)}…${value.slice(-10)}` : value || "Not available";
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown time";
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
 }
 
-function notify(message, type = "success") {
-  toast.textContent = message;
-  toast.dataset.type = type;
-  toast.classList.add("visible");
-  window.clearTimeout(notify.timeout);
-  notify.timeout = window.setTimeout(() => toast.classList.remove("visible"), 3600);
+function slugify(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "skillcheck-report";
 }
 
-function query(selector) {
-  const element = document.querySelector(selector);
-  if (!element) throw new Error(`Missing required UI element: ${selector}`);
+function byId(id) {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`Missing required element: ${id}`);
   return element;
 }
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+  return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, "&#96;");
 }

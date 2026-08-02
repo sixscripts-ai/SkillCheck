@@ -3,237 +3,221 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="SkillCheck scans AI agent skill packages and produces deterministic release evidence.">
-  <meta name="theme-color" content="#08090d">
-  <title>SkillCheck — Ship agent skills with proof</title>
+  <meta name="description" content="SkillCheck scans AI agent skill packages and creates deterministic release evidence.">
+  <meta name="theme-color" content="#050505">
+  <title>SkillCheck — Release AI agent skills with evidence</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div class="ambient ambient-one" aria-hidden="true"></div>
-  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <div class="background-grid" aria-hidden="true"></div>
+  <div class="background-glow" aria-hidden="true"></div>
 
-  <header class="topbar">
+  <header class="app-header">
     <button class="brand" type="button" data-nav="scan" aria-label="Open SkillCheck scanner">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" role="img"><path d="M12 2.5 20 6v5.8c0 5-3.3 8-8 9.7-4.7-1.7-8-4.7-8-9.7V6l8-3.5Z"/><path d="m8.2 12.1 2.3 2.3 5.2-5.3"/></svg>
-      </span>
-      <span><strong>SkillCheck</strong><small>release evidence for agent skills</small></span>
+      <span class="brand-symbol" aria-hidden="true">S</span>
+      <span class="brand-copy"><strong>SkillCheck</strong><small>agent release gate</small></span>
     </button>
 
-    <nav class="primary-nav" aria-label="Primary navigation">
-      <button type="button" data-nav="scan" class="active">Scan</button>
+    <nav class="main-nav" aria-label="Primary navigation">
+      <button type="button" class="active" data-nav="scan">Scan</button>
       <button type="button" data-nav="reports">Reports</button>
-      <button type="button" data-nav="policies">Policies</button>
-      <button type="button" data-nav="ci">CI Setup</button>
+      <button type="button" data-nav="policies">Policy</button>
+      <button type="button" data-nav="ci">CI</button>
       <button type="button" data-nav="docs">Docs</button>
     </nav>
 
-    <div class="topbar-actions">
-      <span class="version">v1.0.0-rc.1</span>
-      <a class="icon-link" href="https://github.com/sixscripts-ai/SkillCheck" aria-label="Open SkillCheck on GitHub">↗</a>
+    <div class="header-actions">
+      <span class="release-version">v1.0.0-rc.1</span>
+      <a class="header-link" href="https://github.com/sixscripts-ai/SkillCheck" target="_blank" rel="noreferrer">GitHub ↗</a>
     </div>
   </header>
 
   <main>
-    <section class="view active" data-view-panel="scan">
-      <div class="hero-shell">
+    <section class="view active" data-view="scan">
+      <div class="landing-shell">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> Deterministic agent release gate</p>
-          <h1>Ship agent skills<br>with <em>proof.</em></h1>
-          <p class="hero-lede">Scan permissions, executable code, package risks, and release evidence before deployment. Local packages stay in your browser.</p>
-          <div class="hero-actions">
-            <button class="button primary large" type="button" id="hero-scan">Scan a package</button>
-            <button class="button secondary large" type="button" id="example-report">View example report</button>
+          <p class="eyebrow"><span></span> Deterministic static analysis</p>
+          <h1>Know what your agent can do <em>before it ships.</em></h1>
+          <p class="hero-lede">Scan the exact package, map permissions, inspect executable files, and produce a release decision your team can review.</p>
+          <div class="hero-points" aria-label="SkillCheck capabilities">
+            <span>Exact package fingerprint</span>
+            <span>Permission change detection</span>
+            <span>CI-ready evidence</span>
           </div>
-          <div class="hero-trust">
-            <span>One engine</span><span>Exact-draft fingerprints</span><span>Zero model dependency</span>
-          </div>
+          <button class="text-link" type="button" id="example-report">Open an example blocked report →</button>
         </div>
 
-        <div class="hero-visual" aria-hidden="true">
-          <div class="shield-stage">
-            <div class="shield-orbit orbit-one"></div>
-            <div class="shield-orbit orbit-two"></div>
-            <div class="shield-core">
-              <svg viewBox="0 0 24 24"><path d="M12 2.5 20 6v5.8c0 5-3.3 8-8 9.7-4.7-1.7-8-4.7-8-9.7V6l8-3.5Z"/><path d="m8.2 12.1 2.3 2.3 5.2-5.3"/></svg>
+        <section class="scanner-console" id="scanner" aria-labelledby="scanner-heading">
+          <div class="console-heading">
+            <div>
+              <p class="console-label">New scan</p>
+              <h2 id="scanner-heading">Choose the package you plan to release</h2>
             </div>
-            <span class="signal signal-one">permission map</span>
-            <span class="signal signal-two">package fingerprint</span>
-            <span class="signal signal-three">release decision</span>
+            <span class="local-pill">Runs locally</span>
           </div>
-        </div>
+
+          <div class="source-switcher" role="tablist" aria-label="Package source">
+            <button type="button" class="active" data-source="upload" role="tab" aria-selected="true">Upload</button>
+            <button type="button" data-source="folder" role="tab" aria-selected="false">Folder</button>
+            <button type="button" data-source="paste" role="tab" aria-selected="false">Paste</button>
+            <button type="button" data-source="github" role="tab" aria-selected="false">GitHub</button>
+          </div>
+
+          <div class="source-panel active" data-source-panel="upload">
+            <label class="drop-area" id="drop-area" for="package-files">
+              <span class="drop-mark" aria-hidden="true">+</span>
+              <strong>Drop a package or ZIP</strong>
+              <span>SKILL.md, scripts, manifests, workflows, and supporting files</span>
+              <span class="browse-button">Choose files</span>
+              <input id="package-files" type="file" multiple accept=".md,.markdown,.txt,.json,.yaml,.yml,.toml,.js,.mjs,.cjs,.ts,.tsx,.py,.sh,.zip">
+            </label>
+          </div>
+
+          <div class="source-panel" data-source-panel="folder">
+            <label class="drop-area" for="folder-files">
+              <span class="drop-mark" aria-hidden="true">⌁</span>
+              <strong>Select a complete skill folder</strong>
+              <span>Nested paths are preserved for package-level analysis</span>
+              <span class="browse-button">Choose folder</span>
+              <input id="folder-files" type="file" multiple webkitdirectory>
+            </label>
+          </div>
+
+          <div class="source-panel" data-source-panel="paste">
+            <div class="editor-heading">
+              <span>SKILL.md</span>
+              <div><button type="button" id="safe-sample">Safe sample</button><button type="button" id="unsafe-sample">Unsafe sample</button></div>
+            </div>
+            <textarea id="editor" spellcheck="false" aria-label="Paste SKILL.md"></textarea>
+          </div>
+
+          <div class="source-panel" data-source-panel="github">
+            <div class="github-panel">
+              <div class="github-copy"><span class="github-mark">⌘</span><div><strong>Public GitHub repository</strong><p>Repository and subdirectory URLs are supported.</p></div></div>
+              <input id="github-url" type="url" placeholder="https://github.com/owner/repository" aria-label="Public GitHub repository URL">
+            </div>
+          </div>
+
+          <div class="console-footer">
+            <div class="selection-state"><span></span><p id="selection-label">No package selected</p></div>
+            <button class="primary-button" id="run-scan" type="button">Run SkillCheck</button>
+          </div>
+        </section>
       </div>
 
-      <section class="scanner-card" id="scanner" aria-labelledby="scanner-title">
-        <div class="scanner-head">
-          <div>
-            <p class="section-kicker">New scan</p>
-            <h2 id="scanner-title">Choose the package you plan to ship</h2>
-          </div>
-          <span class="local-badge">Local-first analysis</span>
-        </div>
-
-        <div class="source-tabs" role="tablist" aria-label="Package source">
-          <button type="button" class="active" data-source="local" role="tab" aria-selected="true">Package or ZIP</button>
-          <button type="button" data-source="folder" role="tab" aria-selected="false">Folder</button>
-          <button type="button" data-source="paste" role="tab" aria-selected="false">Paste SKILL.md</button>
-          <button type="button" data-source="github" role="tab" aria-selected="false">GitHub URL</button>
-        </div>
-
-        <div class="source-panel active" data-source-panel="local">
-          <label class="dropzone" id="dropzone" for="package-files">
-            <span class="drop-icon">⇧</span>
-            <strong>Drop a skill package here</strong>
-            <span>ZIP, SKILL.md, scripts, manifests, and workflow files</span>
-            <span class="browse-label">Browse package</span>
-            <input id="package-files" type="file" multiple accept=".md,.markdown,.txt,.json,.yaml,.yml,.toml,.js,.mjs,.cjs,.ts,.tsx,.py,.sh,.zip">
-          </label>
-        </div>
-
-        <div class="source-panel" data-source-panel="folder">
-          <label class="dropzone" for="folder-files">
-            <span class="drop-icon">▱</span>
-            <strong>Select the complete skill folder</strong>
-            <span>Nested paths are preserved for package-level analysis</span>
-            <span class="browse-label">Choose folder</span>
-            <input id="folder-files" type="file" multiple webkitdirectory>
-          </label>
-        </div>
-
-        <div class="source-panel" data-source-panel="paste">
-          <div class="editor-toolbar">
-            <span>SKILL.md</span>
-            <div><button type="button" id="safe-sample">Safe sample</button><button type="button" id="unsafe-sample">Unsafe sample</button></div>
-          </div>
-          <textarea id="editor" spellcheck="false" aria-label="Paste SKILL.md"></textarea>
-        </div>
-
-        <div class="source-panel" data-source-panel="github">
-          <div class="github-source">
-            <span class="github-icon">⌘</span>
-            <div><strong>Scan a public GitHub repository</strong><p>Repository and subdirectory URLs are supported.</p></div>
-            <input id="github-url" type="url" placeholder="https://github.com/owner/repository" aria-label="Public GitHub repository URL">
-          </div>
-        </div>
-
-        <div class="scanner-footer">
-          <div class="selection-summary"><span class="selection-dot"></span><span id="selection-label">No package selected</span></div>
-          <button class="button primary" id="scan" type="button">Run SkillCheck</button>
-        </div>
+      <section class="proof-strip" aria-label="How SkillCheck works">
+        <article><span>01</span><div><strong>Inspect</strong><p>Read instructions and executable files without running the package.</p></div></article>
+        <article><span>02</span><div><strong>Compare</strong><p>Match declared permissions with capabilities inferred from code and prompts.</p></div></article>
+        <article><span>03</span><div><strong>Decide</strong><p>Bind the result to an exact fingerprint and produce a release recommendation.</p></div></article>
       </section>
 
-      <section class="home-grid">
-        <article class="surface recent-surface">
-          <div class="surface-head"><div><p class="section-kicker">Local history</p><h3>Recent reports</h3></div><button type="button" class="text-button" data-nav="reports">View all</button></div>
-          <div id="recent-home" class="report-list"></div>
-        </article>
-        <article class="surface proof-surface">
-          <p class="section-kicker">Why SkillCheck</p>
-          <h3>A release decision you can explain.</h3>
-          <div class="proof-grid">
-            <div><span>01</span><strong>Map capabilities</strong><p>Compare declared access with instructions and executable code.</p></div>
-            <div><span>02</span><strong>Bind the draft</strong><p>Fingerprint the exact package and policy used for every decision.</p></div>
-            <div><span>03</span><strong>Block regressions</strong><p>Surface new risks and permission expansion before merge.</p></div>
-            <div><span>04</span><strong>Carry evidence</strong><p>Attach evaluations and sandbox proof to a release candidate.</p></div>
-          </div>
-        </article>
+      <section class="recent-section">
+        <div class="section-heading-row"><div><p class="eyebrow compact"><span></span> This browser</p><h2>Recent reports</h2></div><button class="secondary-button" type="button" data-nav="reports">View all reports</button></div>
+        <div id="recent-home" class="report-cards"></div>
       </section>
     </section>
 
-    <section class="view" data-view-panel="report">
-      <div class="report-page">
-        <aside class="report-rail">
-          <button class="rail-brand" type="button" data-nav="scan"><span>‹</span> New scan</button>
-          <div class="rail-subject"><small>Current report</small><strong id="rail-name">Untitled package</strong><span id="rail-status" class="status-chip">Not scanned</span></div>
-          <nav class="report-tabs" aria-label="Report sections">
-            <button type="button" class="active" data-report-tab="overview">Overview</button>
-            <button type="button" data-report-tab="findings">Findings <span id="rail-finding-count">0</span></button>
-            <button type="button" data-report-tab="permissions">Permissions</button>
-            <button type="button" data-report-tab="package">Package</button>
-            <button type="button" data-report-tab="evidence">Evidence</button>
-            <button type="button" data-report-tab="history">History</button>
-          </nav>
-          <div class="rail-callout"><strong>Protect every change</strong><p>Generate a GitHub Actions gate from this policy.</p><button class="button secondary compact" type="button" data-nav="ci">Add CI protection</button></div>
-        </aside>
+    <section class="view" data-view="report">
+      <div class="report-shell">
+        <header class="report-topline">
+          <button class="back-button" type="button" data-nav="scan">← New scan</button>
+          <div class="report-identity"><p>Current report</p><h1 id="report-name">Package report</h1><span id="report-time">Not scanned</span></div>
+          <div class="report-actions"><button class="secondary-button" id="download-report" type="button" disabled>Download JSON</button><button class="primary-button" type="button" data-nav="scan">Scan another</button></div>
+        </header>
 
-        <div class="report-content">
-          <header class="report-header">
-            <div><p class="breadcrumb">Reports / <span id="report-breadcrumb">package</span></p><h1 id="report-name">Package report</h1><p id="report-time">Not scanned</p></div>
-            <div class="report-actions"><button type="button" class="button secondary" id="download" disabled>Download JSON</button><button type="button" class="button primary" data-nav="scan">Run new scan</button></div>
-          </header>
+        <section class="decision-layout">
+          <article class="decision-main" id="decision-main">
+            <div class="score-block"><div class="score-number"><strong id="score">--</strong><span>/100</span></div><span class="decision-status" id="decision-status">Not scanned</span></div>
+            <div class="decision-message"><p class="console-label">Static release decision</p><h2 id="decision-title">Run a scan to create a decision</h2><p id="decision-description">SkillCheck will bind the result to this exact package and policy.</p><div id="decision-reasons" class="reason-chips"></div></div>
+          </article>
 
-          <section class="decision-card" id="decision-card">
-            <div class="score-ring" id="score-ring"><div><strong id="score">--</strong><span>/100</span></div></div>
-            <div class="decision-copy"><p class="section-kicker">Static release decision</p><h2 id="decision-title">Run a scan to create a decision</h2><p id="decision-description">SkillCheck will bind the result to this package and policy fingerprint.</p><div id="decision-reasons" class="reason-list"></div></div>
-            <div class="decision-facts"><div><span>Blocking</span><strong id="blocking-count">0</strong></div><div><span>Review</span><strong id="review-count">0</strong></div><div><span>Files</span><strong id="file-count">0</strong></div><div><span>Scanner</span><strong id="scanner-version">--</strong></div></div>
-          </section>
+          <aside class="decision-metrics">
+            <div><span>Blocking</span><strong id="blocking-count">0</strong></div>
+            <div><span>Review</span><strong id="review-count">0</strong></div>
+            <div><span>Files</span><strong id="file-count">0</strong></div>
+            <div><span>Scanner</span><strong id="scanner-version">--</strong></div>
+          </aside>
+        </section>
 
-          <section class="report-panel active" data-report-panel="overview">
-            <div class="overview-grid">
-              <article class="surface release-summary"><div class="surface-head"><div><p class="section-kicker">Release gate</p><h3 id="gate-title">Not evaluated</h3></div><span id="gate-icon" class="gate-icon">○</span></div><p id="gate-summary">Run a scan to evaluate the static package gate.</p><div id="gate-checklist" class="checklist"></div></article>
-              <article class="surface score-breakdown"><div class="surface-head"><div><p class="section-kicker">Risk summary</p><h3>What needs attention</h3></div><button type="button" class="text-button" data-report-tab="findings">Open findings</button></div><div id="overview-risks" class="risk-summary"></div></article>
-            </div>
-            <article class="surface remediation-surface"><div class="surface-head"><div><p class="section-kicker">Next actions</p><h3>Recommended remediation</h3></div></div><div id="remediation-list" class="remediation-list"></div></article>
-          </section>
+        <nav class="report-nav" aria-label="Report sections">
+          <button type="button" class="active" data-report-tab="overview">Overview</button>
+          <button type="button" data-report-tab="findings">Findings <span id="finding-tab-count">0</span></button>
+          <button type="button" data-report-tab="permissions">Permissions</button>
+          <button type="button" data-report-tab="package">Package</button>
+          <button type="button" data-report-tab="evidence">Evidence</button>
+        </nav>
 
-          <section class="report-panel" data-report-panel="findings">
-            <div class="panel-title-row"><div><p class="section-kicker">Static analysis</p><h2>Findings and line evidence</h2></div><div class="filter-pills" id="finding-filters"><button type="button" class="active" data-filter="all">All</button><button type="button" data-filter="error">Blocking</button><button type="button" data-filter="warning">Review</button><button type="button" data-filter="info">Info</button></div></div>
-            <div id="findings" class="findings"></div>
-          </section>
+        <section class="report-panel active" data-report-panel="overview">
+          <div class="overview-layout">
+            <article class="surface-card release-card"><div class="card-heading"><div><p class="console-label">Release gate</p><h3 id="gate-title">Not evaluated</h3></div><span class="gate-mark" id="gate-mark">○</span></div><p id="gate-summary">Run a scan to evaluate the static package gate.</p><div id="gate-checklist" class="check-list"></div></article>
+            <article class="surface-card risk-card"><div class="card-heading"><div><p class="console-label">Risk summary</p><h3>What needs attention</h3></div><button class="text-link" type="button" data-report-tab="findings">Open findings →</button></div><div id="risk-summary" class="metric-list"></div></article>
+          </div>
+          <article class="surface-card remediation-card"><div class="card-heading"><div><p class="console-label">Next actions</p><h3>Recommended remediation</h3></div></div><div id="remediation-list" class="remediation-grid"></div></article>
+        </section>
 
-          <section class="report-panel" data-report-panel="permissions">
-            <div class="panel-title-row"><div><p class="section-kicker">Capability map</p><h2>Declared and inferred permissions</h2></div></div>
-            <div id="permission-grid" class="permission-grid"></div>
-          </section>
+        <section class="report-panel" data-report-panel="findings">
+          <div class="panel-heading"><div><p class="console-label">Static analysis</p><h2>Findings and line evidence</h2></div><div class="filter-buttons" id="finding-filters"><button type="button" class="active" data-filter="all">All</button><button type="button" data-filter="error">Blocking</button><button type="button" data-filter="warning">Review</button><button type="button" data-filter="info">Info</button></div></div>
+          <div id="findings" class="findings-list"></div>
+        </section>
 
-          <section class="report-panel" data-report-panel="package">
-            <div class="panel-title-row"><div><p class="section-kicker">Exact draft</p><h2>Package identity</h2></div></div>
-            <div id="package-grid" class="package-grid"></div>
-          </section>
+        <section class="report-panel" data-report-panel="permissions">
+          <div class="panel-heading"><div><p class="console-label">Capability map</p><h2>Declared and inferred permissions</h2></div></div>
+          <div id="permission-grid" class="permission-grid"></div>
+        </section>
 
-          <section class="report-panel" data-report-panel="evidence">
-            <div class="panel-title-row"><div><p class="section-kicker">Evidence chain</p><h2>Why this decision exists</h2></div></div>
-            <div id="evidence-timeline" class="timeline"></div>
-          </section>
+        <section class="report-panel" data-report-panel="package">
+          <div class="panel-heading"><div><p class="console-label">Exact draft</p><h2>Package identity</h2></div></div>
+          <div id="package-grid" class="package-grid"></div>
+        </section>
 
-          <section class="report-panel" data-report-panel="history">
-            <div class="panel-title-row"><div><p class="section-kicker">Local history</p><h2>Previous scans</h2></div></div>
-            <div id="report-history" class="report-list expanded"></div>
-          </section>
-        </div>
+        <section class="report-panel" data-report-panel="evidence">
+          <div class="panel-heading"><div><p class="console-label">Evidence chain</p><h2>Why this decision exists</h2></div></div>
+          <div id="evidence-timeline" class="evidence-timeline"></div>
+        </section>
       </div>
     </section>
 
-    <section class="view simple-page" data-view-panel="reports">
-      <div class="page-heading"><p class="eyebrow"><span></span> Browser-local history</p><h1>Reports</h1><p>Recent scans stored on this device. Reports are never uploaded by the static web app.</p></div>
-      <div class="surface page-surface"><div class="surface-head"><h2>Recent reports</h2><button type="button" id="clear-history" class="text-button danger">Clear history</button></div><div id="reports-list" class="report-list expanded"></div></div>
+    <section class="view page-view" data-view="reports">
+      <div class="page-heading"><p class="eyebrow"><span></span> Browser-local storage</p><h1>Reports</h1><p>Open or export previous scans stored on this device.</p></div>
+      <section class="surface-card page-card"><div class="card-heading"><h2>Recent scans</h2><button class="text-link danger" id="clear-history" type="button">Clear history</button></div><div id="reports-list" class="report-table"></div></section>
     </section>
 
-    <section class="view simple-page" data-view-panel="policies">
-      <div class="page-heading"><p class="eyebrow"><span></span> Deterministic controls</p><h1>Policies</h1><p>Keep scoring, permissions, evidence age, and release requirements explicit and versioned.</p></div>
-      <div class="two-column-page">
-        <article class="surface page-surface"><p class="section-kicker">Default policy</p><h2>Release-ready baseline</h2><div class="policy-list"><div><span>Minimum score</span><strong>80</strong></div><div><span>Block on</span><strong>Errors</strong></div><div><span>Evidence maximum age</span><strong>24 hours</strong></div><div><span>Declared permissions</span><strong>Required</strong></div></div></article>
-        <article class="surface code-surface"><div class="surface-head"><h2>skillcheck.config.json</h2><button type="button" class="copy-button" data-copy-target="policy-code">Copy</button></div><pre id="policy-code"><code>{
+    <section class="view page-view" data-view="policies">
+      <div class="page-heading"><p class="eyebrow"><span></span> Versioned controls</p><h1>Policy</h1><p>Keep scoring, allowed permissions, required sections, and evidence age explicit.</p></div>
+      <div class="page-columns">
+        <section class="surface-card page-card"><p class="console-label">Default release policy</p><h2>Strict enough to block obvious risk</h2><div class="policy-facts"><div><span>Minimum score</span><strong>80</strong></div><div><span>Block on</span><strong>Error</strong></div><div><span>Declared permissions</span><strong>Required</strong></div><div><span>Evidence maximum age</span><strong>24 hours</strong></div></div></section>
+        <section class="surface-card code-card"><div class="code-heading"><h2>skillcheck.config.json</h2><button type="button" class="copy-button" data-copy="policy-code">Copy</button></div><pre id="policy-code"><code>{
   "version": "1",
   "minimumScore": 80,
   "blockOn": ["error"],
   "requireDeclaredPermissions": true,
   "maximumEvidenceAgeMs": 86400000,
-  "requiredSections": ["Purpose", "Instructions", "Safety"]
-}</code></pre></article>
+  "allowPermissions": [
+    "filesystem:read",
+    "filesystem:write",
+    "network",
+    "shell",
+    "git:write",
+    "secrets:read",
+    "browser"
+  ]
+}</code></pre></section>
       </div>
     </section>
 
-    <section class="view simple-page" data-view-panel="ci">
-      <div class="page-heading"><p class="eyebrow"><span></span> Continuous verification</p><h1>Protect every pull request.</h1><p>Run the same SkillCheck engine in the browser, CLI, SDK, and GitHub Actions.</p></div>
-      <div class="two-column-page ci-layout">
-        <article class="surface page-surface"><p class="section-kicker">Setup</p><h2>Three files, one release gate</h2><ol class="steps"><li><span>1</span><div><strong>Add the workflow</strong><p>Run SkillCheck on every pull request.</p></div></li><li><span>2</span><div><strong>Commit a policy</strong><p>Version the score and permission requirements.</p></div></li><li><span>3</span><div><strong>Approve a baseline</strong><p>Block only newly introduced risk.</p></div></li></ol></article>
-        <article class="surface code-surface"><div class="surface-head"><h2>.github/workflows/skillcheck.yml</h2><button type="button" class="copy-button" data-copy-target="ci-code">Copy</button></div><pre id="ci-code"><code>name: SkillCheck
-on: [pull_request]
+    <section class="view page-view" data-view="ci">
+      <div class="page-heading"><p class="eyebrow"><span></span> Protect pull requests</p><h1>CI setup</h1><p>Run the same scanner on every change and block new risk before merge.</p></div>
+      <div class="page-columns">
+        <section class="surface-card page-card"><p class="console-label">Three steps</p><h2>Add SkillCheck to GitHub Actions</h2><ol class="steps"><li><span>1</span><div><strong>Commit the policy</strong><p>Add skillcheck.config.json to the repository root.</p></div></li><li><span>2</span><div><strong>Add the workflow</strong><p>Use the generated Action configuration.</p></div></li><li><span>3</span><div><strong>Protect the branch</strong><p>Require the SkillCheck check before merge.</p></div></li></ol></section>
+        <section class="surface-card code-card"><div class="code-heading"><h2>.github/workflows/skillcheck.yml</h2><button type="button" class="copy-button" data-copy="ci-code">Copy</button></div><pre id="ci-code"><code>name: SkillCheck
+on:
+  pull_request:
+  push:
+    branches: [main]
 permissions:
   contents: read
 jobs:
-  verify:
+  scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -243,19 +227,19 @@ jobs:
         with:
           path: .
           config: skillcheck.config.json
-          mode: auto</code></pre></article>
+          mode: auto</code></pre></section>
       </div>
     </section>
 
-    <section class="view simple-page" data-view-panel="docs">
-      <div class="page-heading"><p class="eyebrow"><span></span> Product boundary</p><h1>Evidence, not theater.</h1><p>SkillCheck makes static risks and release requirements inspectable without pretending static analysis proves runtime safety.</p></div>
+    <section class="view page-view" data-view="docs">
+      <div class="page-heading"><p class="eyebrow"><span></span> Product boundary</p><h1>Docs</h1><p>SkillCheck provides deterministic static evidence. Runtime behavior still requires evaluation, sandboxing, and review.</p></div>
       <div class="docs-grid">
-        <article class="surface doc-card"><span>01</span><h2>Scan the package</h2><p>Inspect SKILL.md, scripts, manifests, workflows, environment references, symlinks, and install hooks.</p></article>
-        <article class="surface doc-card"><span>02</span><h2>Bind the result</h2><p>Create stable package and policy fingerprints so stale evidence cannot authorize a changed draft.</p></article>
-        <article class="surface doc-card"><span>03</span><h2>Attach runtime proof</h2><p>Use evaluations and sandbox evidence to satisfy the full release gate outside this static browser scanner.</p></article>
-        <article class="surface doc-card"><span>04</span><h2>Block regressions</h2><p>Compare base and head reports to isolate newly introduced findings and permission expansion.</p></article>
+        <article class="surface-card doc-card"><span>01</span><h2>Scan packages</h2><p>Analyze SKILL.md, executable files, manifests, workflows, environment references, and package structure.</p></article>
+        <article class="surface-card doc-card"><span>02</span><h2>Bind exact drafts</h2><p>Every report includes package and policy fingerprints so stale evidence cannot approve changed code.</p></article>
+        <article class="surface-card doc-card"><span>03</span><h2>Compare changes</h2><p>Pull-request mode isolates new findings, resolved findings, permission expansion, and score changes.</p></article>
+        <article class="surface-card doc-card"><span>04</span><h2>Complete runtime proof</h2><p>Attach evaluations and sandbox results before a production system treats a package as release-ready.</p></article>
       </div>
-      <article class="surface boundary"><strong>Static-analysis boundary</strong><p>SkillCheck does not execute uploaded code, guarantee the absence of malicious behavior, replace sandboxing, or eliminate human review.</p></article>
+      <aside class="boundary-note"><strong>Static-analysis boundary</strong><p>SkillCheck does not execute uploaded packages, prove runtime behavior, or replace human approval for high-impact actions.</p></aside>
     </section>
   </main>
 
